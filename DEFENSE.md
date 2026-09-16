@@ -1,27 +1,7 @@
-## 1.Why exactly this domain
-I picked this domain, because it can easily demostrate common relations between enitites, popular around the world and has as pure relations, as associative ones.
+
 ## 1.Why exactly this domen
 I picked this domen, because it can easily demostrate common relations between enitites, popular around the world and has as pure relations, as associative ones.
 
-## 2. Normalization Rationale (3NF)
-
-The data model strictly adheres to the Third Normal Form (3NF) to guarantee data integrity:
-
-1. **First Normal Form:**
-   * All attributes contain strictly atomic values.
-   * Full names are decoupled into `first_name` and `last_name` across `Student` and `Instructor` entities.
-   * No repeating groups.
-
-2. **Second Normal Form:**
-   * The schema is in 1NF.
-   * Every entity leverages a single primary key (`id : UUID`).
-   * Because composite primary keys are avoided (including within the associative `Booking` entity), partial key functional dependencies are structurally impossible.
-
-
-3. **Third Normal Form:**
-   * The schema is in 2NF, with no transitive dependencies.
-   * Hall capacity (`capacity`) is stored exclusively in `Hall` and is not copied into `Lesson` (where `max_capacity` represents only the administrative group limit, not the physical room size).
-   * Contact details (`email`, `phone`) reside solely in `Student` and `Instructor`, avoiding duplication within schedule slots (`Lesson`) or records (`Booking`).
 ## 2. Normalization Rationale (3NF)
 
 The data model strictly adheres to the Third Normal Form (3NF) to guarantee data integrity:

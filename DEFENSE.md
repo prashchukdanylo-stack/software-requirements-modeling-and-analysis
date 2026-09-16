@@ -37,3 +37,8 @@ During the iterative audit of the specification against the declarative ER model
 3. **Key and Attribute Type Homogeneity:**
    * Issue: Acceptance criteria mandated uniform identifiers, but initial drafts risked inconsistent scalar types across foreign keys.
    * Resolution: Audited all primary (`PK`) and foreign (`FK`) keys across all 6 entities to strictly use `UUID`, ensuring zero type mismatch between referenced and referencing attributes.
+
+   ## 4. AI Interaction
+* **Role of AI:** AI was used as an advisory tool to draft `spec.md`, validate normalization criteria (3NF), and audit cardinality syntax in PlantUML.
+* **Original Work:** The declarative diagram code (`diagram.puml`), entity structure, and final relationship decomposition were developed independently.
+* **Prompt Logs:** Key AI prompts are stored in the repository at `ai/prompts.md`.

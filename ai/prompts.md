@@ -13,7 +13,7 @@ This log documents the iterative interaction with the AI assistant during the co
   * Identified core domain entities: `Student`, `Instructor`, `DanceStyle`, `Hall`, `Lesson`, and `Booking`.
   * Isolated the pure N:M relationship `Instructor }|--|{ DanceStyle` (requiring no intermediary table at the conceptual level).
   * Formalized `Booking` as an associative entity carrying business attributes (`booked_at`, `status`).
-  * Established 3NF constraints: atomic attributes, surrogate `UUID` keys, and decoupled room metadata.
+  * Established 3NF constraints: atomic attributes, surrogate `uuid` keys, and decoupled room metadata.
 
 ---
 

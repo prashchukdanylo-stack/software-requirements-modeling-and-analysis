@@ -13,7 +13,7 @@ The data model strictly adheres to the Third Normal Form (3NF) to guarantee data
 
 2. **Second Normal Form:**
    * The schema is in 1NF.
-   * Every entity leverages a single primary key (`id : UUID`).
+   * Every entity leverages a single primary key (`id : uuid`).
    * Because composite primary keys are avoided (including within the associative `Booking` entity), partial key functional dependencies are structurally impossible.
 
 
@@ -36,7 +36,7 @@ During the iterative audit of the specification against the declarative ER model
 
 3. **Key and Attribute Type Homogeneity:**
    * Issue: Acceptance criteria mandated uniform identifiers, but initial drafts risked inconsistent scalar types across foreign keys.
-   * Resolution: Audited all primary (`PK`) and foreign (`FK`) keys across all 6 entities to strictly use `UUID`, ensuring zero type mismatch between referenced and referencing attributes.
+   * Resolution: Audited all primary (`PK`) and foreign (`FK`) keys across all 6 entities to strictly use `uuid`, ensuring zero type mismatch between referenced and referencing attributes.
 
    ## 4. AI Interaction
 * **Role of AI:** AI was used as an advisory tool to draft `spec.md`, validate normalization criteria (3NF), and audit cardinality syntax in PlantUML.

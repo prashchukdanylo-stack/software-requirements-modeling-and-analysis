@@ -1,10 +1,10 @@
 ## Entites and their atributes
-* **Student:** id: UUID(PK), first_name: string, last_name: string, email: string, phone: string, registered_at: datetime.
-* **Instructor:** id: UUID(PK), first_name: string, last_name: string, email: string, phone: string, bio: string, hired_at: datetime.
-* **DanceStyle:** id: UUID(PK), name: string, description: string.
-* **Hall:** id: UUID(PK), name: string, capacity: int.
-* **Lesson:** id: UUID(PK), instructor_id: UUID(FK), hall_id: UUID(FK), dance_style_id: UUID(FK), start_time: datetime, end_time: datetime, max_capacity: int
-* **Booking** id: UUID(PK),student_id: UUID(FK), lesson_id: UUID(FK), booked_at: datetime, status: string.
+* **Student:** id: uuid(PK), first_name: string, last_name: string, email: string, phone: string, registered_at: datetime.
+* **Instructor:** id: uuid(PK), first_name: string, last_name: string, email: string, phone: string, bio: string, hired_at: datetime.
+* **DanceStyle:** id: uuid(PK), name: string, description: string.
+* **Hall:** id: uuid(PK), name: string, capacity: int.
+* **Lesson:** id: uuid(PK), instructor_id: uuid(FK), hall_id: uuid(FK), dance_style_id: uuid(FK), start_time: datetime, end_time: datetime, max_capacity: int
+* **Booking** id: uuid(PK),student_id: uuid(FK), lesson_id: uuid(FK), booked_at: datetime, status: string.
 
 ## Relationships
 * **Instructor — DanceStyle(N:M):** Many to many, because one instructor can teach many styles (1..N), and one style can be taught by many instructors(1..N).
@@ -17,7 +17,7 @@ Each booking strictly belongs to one student and one lesson, containing its own 
 
 ## Acceptance Criteria
 
-All keys are strictly UUIDs;
+All keys are strictly uuids;
 attributes use "snake_case", entity names use "PascalCase";
 attributes are atomic, no partial dependencies on keys and no transitive dependencies;
-pure relations.
+Represent Booking as an associative entity between Student and Lesson.

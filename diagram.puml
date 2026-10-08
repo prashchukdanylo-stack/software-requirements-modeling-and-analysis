@@ -55,7 +55,6 @@ entity Booking {
     * status : string
 }
 
-Instructor }|--|{ DanceStyle
 Hall ||--o{ Lesson
 Instructor ||--o{ Lesson
 DanceStyle ||--o{ Lesson

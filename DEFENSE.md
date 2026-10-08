@@ -33,6 +33,8 @@ During the iterative audit of the specification against the declarative ER model
 2. **Entity Optionality (DanceStyle ↔ Lesson):**
    * Issue: The relation originally required mandatory participation (`1..N`), which prevented registering newly introduced dance styles before scheduling actual classes.
    * Resolution: Relaxed the lower bound to `0..N` (`DanceStyle 1 ||--o{ Lesson`), allowing dance styles to exist independently in the system catalog.
+   * Issue: The relation between Instructor and DanceStyle was on the diagram, but no FK could demonstrate this relationship.
+   *Resolution: deletion of this relation, because Lesson has FK for Instructor and DanceStyle, and they don't need any other.
 
 3. **Key and Attribute Type Homogeneity:**
    * Issue: Acceptance criteria mandated uniform identifiers, but initial drafts risked inconsistent scalar types across foreign keys.

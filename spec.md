@@ -7,7 +7,6 @@
 * **Booking** id: uuid(PK),student_id: uuid(FK), lesson_id: uuid(FK), booked_at: datetime, status: string.
 
 ## Relationships
-* **Instructor — DanceStyle(N:M):** Many to many, because one instructor can teach many styles (1..N), and one style can be taught by many instructors(1..N).
 * **Hall — Lesson(1:N):** one hall can have zero or many lessons (0..N), but one lesson can be only in 1 hall(1..1).
 * **Instructor — Lesson(1:N):** one instructor can have zero or many lessons(0..N), but one lesson is taught by one instructor(1..1).
 * **DanceStyle — Lesson(1:N):** one dance style can be taught on zero or many lessons(0..N), but one lesson teaches one dance style(1..1).

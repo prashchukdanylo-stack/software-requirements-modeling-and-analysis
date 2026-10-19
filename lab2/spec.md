@@ -31,3 +31,32 @@ send students notifications about success/fail of their bookings.
 * **UserStory-3 (checking students list):** as a Instructor, I want to check a list of all Students, applied for my Lesson to have a qualitative plan of it.
 * **UserStory-4 (planning and timetable):** as a Administrator, I want to create new Lessons, relate them to Halls, DanceStyles and Instructors to maintain useful timetable for all users of studio.\
 * **UserStory-5 (cancelling):** as a Student, I want to have an ability to cancel my Booking before Lesson starts, so other people can join.  
+
+## Gherkin
+
+**Feature:** Booking and paying for Lesson in dance studio. 
+As a Student, I want to book a place for a Lesson and pay for it with my my card to be absolutely sure, that I am included.
+
+*Scenario: successful booking and payment using MonoBank API*
+Given student is registered in system
+And there is active Lesson "Hip Hop" in "Hall 2" with free space
+When Student chooses Lesson and clicks "Book and pay"
+Then system registers an entry in Booking table with "pending" status
+And redirects Student to MonoBank payment page
+When MonoBank API sends a response, that transaction is succesfull
+Then system changes entry's status on "confirmed"
+And sends Student a notification about success of registration.
+
+*Scenario: Booking is cancelled in case of an error during payment*
+Given system registers an entry in Booking table with "pending" status
+When MonoBank API sends a response, that there is an error or "failure" status
+Then system changes entry's status on "cancelled"
+And frees a place for other students to book
+And notifies student about payment problems.
+
+*Scenario: Student cancels Booking*
+Given student's entry in Booking table has status "confirmed"
+When Student clicks "Cancel booking" in his profile
+Then system changes entry's status on "cancelled"
+And frees a place for other students to book
+And notifies STudent that Booking is succesfully canceled

@@ -80,3 +80,15 @@ And notifies STudent that Booking is succesfully canceled
 
 * **Why there are no useCase and Gherkin**  
   Since Use Cases and Gherkin scenarios are designed to describe system behavior during direct interaction with a user or an external API, this requirement is not verified via a user interface scenario.
+
+### Audit
+
+* **EARS:** All requirements within the specification have been audited to eliminate subjactive terms, such as "fast", "conveinent" etc. For example, instead of an ambiguous phrase like "System SHALL quickly check for available place", an event-driven EARS requirement REQ-2 was defined: "WHEN Student tries too book a Lesson, system SHALL check for Hall capacity and create payment registration in Booking table with "pending" status." This can be easily verified by some db queries.
+
+* **include/extend:** "include" relationship is between 'UC_Book' (Book a Lesson) and 'UC_Pay' (Initiate Monobank payment), because booking transaction cannot be initialized without creating a payment session using Monobank API. Also, processing a payment webhook 'UC_Webhook' is an essential dependency for verifying final booking state.
+"extend" relationship is between 'UC_Cancel' and 'UC_Book', beacuse cancellation is optional, happens by the student or automatically upon a payment timeout, without disrupting standart booking lifecycle.
+    
+* **Top 3 mismatches with Lab1 model:** 
+*First mismatch:* in Lab2 specification, there is a 'Administrator' actor, who manages system directories. However, in Lab1 there was no admin or unified 'User' entity. Resolution: business logic requires an administrative role, so future schema should introduce it.
+*Second mismatch:* Lab2 specifies integration with external Monobank API, including transaction processing and Webhook handling. However, Lab1 lacks "Payment" entity to store everything about it. Resolution: payment status in current fata model is stored via string field "status: string" in Booking table. Payment entity should be added, with linked to Booking using 'booking_id'.
+*Third mismatch:* Requirements REQ-02 and REQ-05 define a strict lifecycle for Booking states ("pending" -- "confirmed" or "cancelled"). However, in Lab1 ER diagram, Booking entoty just has 'status: string', without any constraints etc. Resolution: create custom enum type Booking_status with 3 possible states.

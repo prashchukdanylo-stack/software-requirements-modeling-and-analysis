@@ -60,3 +60,23 @@ When Student clicks "Cancel booking" in his profile
 Then system changes entry's status on "cancelled"
 And frees a place for other students to book
 And notifies STudent that Booking is succesfully canceled
+
+## Traceability Matrix
+
+| EARS Req ID | Description| User Story ID | Use Case ID | Gherkin Scenario ID | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **REQ-01** | support of relations  Student --  Lesson -- Booking | UserStory-01, UserStory-05 | UC_Book, UC_Cancel | SC-01, SC-02, SC-03 | **Covered** |
+| **REQ-02** | Checking capacity of Hall and creating Booking (pending_payment) | UserStory-01 | UC_Book | SC-01 | **Covered** |
+| **REQ-03** | Initialisation of payment session  Monobank API | UserStory-01 | UC_Pay | SC-01 | **Covered** |
+| **REQ-04** | Blocking place when processing the payment | UserStory-01 | UC_Book, UC_Pay | SC-01 | **Covered** |
+| **REQ-05** | Cancelling Booking in case of errors or timeouts in  Monobank API | UserStory-01, UserStory-05 | UC_Pay, UC_Cancel, UC_Webhook | SC-02 | **Covered** |
+| **REQ-06** | Automatic system checks for correctness of all data in data base| — | — | — |  **Not covered** |
+
+---
+
+###  About uncovered requirement
+
+* **Req-6(event_driven):** WHEN Administrator creates or updates classes timetable, system SHALL check if all relations among Hall, Instructor and DanceStyle aro correct.
+
+* **Why there are no useCase and Gherkin**  
+  Since Use Cases and Gherkin scenarios are designed to describe system behavior during direct interaction with a user or an external API, this requirement is not verified via a user interface scenario.

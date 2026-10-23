@@ -83,34 +83,34 @@ Then system changes entry's status on "cancelled"
 And frees a place for other students to book
 And notifies Student that Booking is succesfully canceled.
 
-## Traceability Matrix
+## 4. Traceability Matrix
 
-| EARS Req ID | Description| User Story ID | Use Case ID | Gherkin Scenario ID | Status |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **REQ-01** | support of relations  Student --  Lesson -- Booking | UserStory-01, UserStory-05 | UC_Book, UC_Cancel | SC-01, SC-02, SC-03 | **Covered** |
-| **REQ-02** | Checking capacity of Hall and creating Booking (pending_payment) | UserStory-01 | UC_Book | SC-01 | **Covered** |
-| **REQ-03** | Initialisation of payment session  Monobank API | UserStory-01 | UC_Pay | SC-01 | **Covered** |
-| **REQ-04** | Blocking place when processing the payment | UserStory-01 | UC_Book, UC_Pay | SC-01 | **Covered** |
-| **REQ-05** | Cancelling Booking in case of errors or timeouts in  Monobank API | UserStory-01, UserStory-05 | UC_Pay, UC_Cancel, UC_Webhook | SC-02 | **Covered** |
-| **REQ-06** | Automatic system checks for correctness of all data in data base| — | — | — |  **Not covered** |
+| EARS Req ID | Description| Use Case ID | Gherkin Scenario ID | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **REQ-01** | Booking status enum constraint (pending_payment, confirmed, cancelled)| UC_Book, UC_Cancel | Scenario 1, Scenario 3, Scenario 4 | **Covered** |
+| **REQ-02** | Checking capacity before booking | UC_Book | Scenario 1, Scenario 2 | **Covered** |
+| **REQ-03** | Initialisation of payment session  Monobank API | UC_Pay | Sсenario 1 | **Covered** |
+| **REQ-04** | Blocking place when processing the payment | UC_Book, UC_Pay | Scenario 1 | **Covered** |
+| **REQ-05** | Cancelling Booking in case of errors or timeouts in  Monobank API | UC_Pay, UC_Cancel, UC_Webhook | Scenario 3 | **Covered** |
+| **REQ-06** | Automatic system checks for correctness of all data in data base| — | — |  **Not covered** |
 
 ---
 
-###  About uncovered requirement
+### 5. About uncovered requirement
 
 * **Req-6(event_driven):** WHEN Administrator creates or updates classes timetable, system SHALL check if all relations among Hall, Instructor and DanceStyle aro correct.
 
-* **Why there are no useCase and Gherkin**  
-  Since Use Cases and Gherkin scenarios are designed to describe system behavior during direct interaction with a user or an external API, this requirement is not verified via a user interface scenario.
+* **Why there are is Gherkin for that**  
+  REQ-06 describes a background database integrity check performed automatically by the database engine or system maintenance scripts. It is intentionally not covered by Gherkin scenarios or student-facing Use Cases because it represents a system-level infrastructure and data maintenance task.
 
-### Audit
+### 6. Audit
 
-* **EARS:** All requirements within the specification have been audited to eliminate subjactive terms, such as "fast", "conveinent" etc. For example, instead of an ambiguous phrase like "System SHALL quickly check for available place", an event-driven EARS requirement REQ-2 was defined: "WHEN Student tries too book a Lesson, system SHALL check for Hall capacity and create payment registration in Booking table with "pending" status." This can be easily verified by some db queries.
+* **EARS and NFR:** All functional requirements use precise mathematical conditions and explicit domain terms (e.g., "15 minutes", "zero remaining capacity")
 
-* **include/extend:** "include" relationship is between 'UC_Book' (Book a Lesson) and 'UC_Pay' (Initiate Monobank payment), because booking transaction cannot be initialized without creating a payment session using Monobank API. Also, processing a payment webhook 'UC_Webhook' is an essential dependency for verifying final booking state.
-"extend" relationship is between 'UC_Cancel' and 'UC_Book', beacuse cancellation is optional, happens by the student or automatically upon a payment timeout, without disrupting standart booking lifecycle.
+* **UseCase and Actors:** implementation details were removed from Use Case Diagram. Monobank API acts as an external system actor strictly for sending incoming webhooks.
     
-* **Top 3 mismatches with Lab1 model:** 
-*First mismatch:* in Lab2 specification, there is a 'Administrator' actor, who manages system directories. However, in Lab1 there was no admin or unified 'User' entity. Resolution: business logic requires an administrative role, so future schema should introduce it.
-*Second mismatch:* Lab2 specifies integration with external Monobank API, including transaction processing and Webhook handling. However, Lab1 lacks "Payment" entity to store everything about it. Resolution: payment status in current fata model is stored via string field "status: string" in Booking table. Payment entity should be added, with linked to Booking using 'booking_id'.
-*Third mismatch:* Requirements REQ-02 and REQ-05 define a strict lifecycle for Booking states ("pending" -- "confirmed" or "cancelled"). However, in Lab1 ER diagram, Booking entoty just has 'status: string', without any constraints etc. Resolution: create custom enum type Booking_status with 3 possible states.
+* **Top 3 mismatches with Lab1 model and solutions:** 
+*Promo code removal:* Issue: initial AI generation from Prompt 3 introduced promotional discount codes into the domain model. Resolution: Manually corrected spec requirements and model scope to strictly focus on flat-rate bookings.
+*Missing Administrator role:* Issue: spec.md required Administrator actor, but Lab1 ER schema lacked it. Resolution: Synchronized role mamagement attributes in model and specification.
+*Unconstrained booking status field:* Issue: "status" field in Lab1 was an unconstrained string.
+Resolution: Restructed status attribute to an ENUM type (pending, confirmed, cancelled).

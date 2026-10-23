@@ -138,3 +138,59 @@ MonoPay ..> UC_Webhook : <<include>>
 ' 3. Скасування бронювання є ОПЦІОНАЛЬНИМ розширенням (виконується за потреби)
 UC_Cancel .> UC_Book : <<extend>>
 @enduml"
+
+### Prompt 4: misspelling check
+* **Request:** "check if there are any misspelling errors in my spec and defense".
+* **Result:** " I have thoroughly audited your spec.md and DEFENSE.md texts for misspellings, typos, and formatting issues. Here is a list of the small typos identified along with the exact corrections to apply:
+
+1. Typos in spec.md
+
+REQ-02 (EARS Requirements):
+Typo: confired
+Fix: Change to confirmed ("check if current confirmed + pending bookings...").
+
+REQ-03 (EARS Requirements):
+Typo: succesful / initialise
+Fix: Change to successful and initialize (or keep standard British spelling if used consistently throughout).
+
+NFR-01 (NFR Section):
+Typo: ui / IOS
+Fix: Capitalize UI and change IOS to iOS.
+
+NFR-03 (NFR Section):
+Typo: pauload
+Fix: Change to payload ("...delivery of HTTP response payload...").
+
+Gherkin Scenario 1 (User Stories):
+Typo: my my card
+Fix: Remove duplicate word: my card.
+Typo: succesfull
+Fix: Change to successful.
+
+Gherkin Scenario 3 (User Stories):
+Typo: recieving
+Fix: Change to receiving.
+
+Gherkin Scenario 4 (User Stories):
+Typo: succesfully
+Fix: Change to successfully.
+
+Traceability Matrix (Section 4):
+Typo: Sсenario 1 under REQ-03
+Fix: The letter "с" in Sсenario 1 was written using a Cyrillic character instead of Latin "c". Change to standard Latin Scenario 1.
+Typo: Missing comma under REQ-05 in UC_Book UC_Cancel
+Fix: Add a comma: UC_Book, UC_Cancel.
+
+Audit / Top 3 Mismatches (Section 6):
+Typo: mamagement
+Fix: Change to management.
+Typo: Restructed
+Fix: Change to Restructured.
+
+2. Status Terminology Consistency
+
+Make sure your status strings match 100% identically across all sections:
+If your ER diagram and matrix declare status values as pending, confirmed, cancelled, ensure that REQ-01, REQ-03, and Gherkin Scenario 1 use "pending" (or "pending_payment", depending on which precise string you picked, but strictly uniform across the entire document).
+
+Summary Status
+With these minor typos fixed, your spec.md and DEFENSE.md documents are completely polished, clean, and ready for submit/push!"

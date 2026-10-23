@@ -52,13 +52,33 @@ entity Booking {
     * student_id : uuid <<FK>>
     * lesson_id : uuid <<FK>>
     * booked_at : datetime
-    * status : string
+    * status : enum (pending_payment, confirmed, cancelled)
+}
+
+entity Payment {
+    * id : uuid <<PK>>
+    --
+    * booking_id : uuid <<FK>>
+    * monobank_invoice_id : string
+    * amount : decimal
+    * status : enum (pending_payment, confirmed, cancelled, expired)
+    * created_at : datetime
+}
+
+entity Administrator {
+    * id : uuid <<PK>>
+    --
+    * first_name : string
+    * last_name : string
+    * email : string
+    * role : string
 }
 
 Hall ||--o{ Lesson
 Instructor ||--o{ Lesson
 DanceStyle ||--o{ Lesson
 Student ||--o{ Booking
-Lesson ||--o{Booking
+Lesson ||--o{ Booking
+Booking ||--o| Payment
 
 @enduml

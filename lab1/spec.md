@@ -5,6 +5,10 @@
 * **Hall:** id: uuid(PK), name: string, capacity: int.
 * **Lesson:** id: uuid(PK), instructor_id: uuid(FK), hall_id: uuid(FK), dance_style_id: uuid(FK), start_time: datetime, end_time: datetime, max_capacity: int
 * **Booking** id: uuid(PK),student_id: uuid(FK), lesson_id: uuid(FK), booked_at: datetime, status: string.
+* **Administrator** id: uuid(PK), first_name: string, last_name: string, email: string, role: string.
+
+* **Payment:** id: uuid(PK), booking_id: uuid(FK), monobank_invoice_id: string, amount: decimal, status: string, created_at: datetime.
+
 
 ## Relationships
 * **Hall — Lesson(1:N):** one hall can have zero or many lessons (0..N), but one lesson can be only in 1 hall(1..1).
@@ -13,6 +17,7 @@
 * **Student — Lesson(N:M through associative entity Booking):** One student can place zero or many bookings (`Student 1 ||--o{ Booking`).
 One lesson can contain zero or many bookings (`Lesson 1 ||--o{ Booking`).
 Each booking strictly belongs to one student and one lesson, containing its own attributes (`booked_at`, `status`).
+* **Booking — Payment (1:1)**: One booking is associated with strictly one active Monobank payment transaction, tracking the invoice ID, amount, and webhook confirmation status.
 
 ## Acceptance Criteria
 

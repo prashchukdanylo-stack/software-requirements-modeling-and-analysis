@@ -1,0 +1,35 @@
+```plantuml
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor User as U
+actor Student as S
+actor Instructor as I
+actor Administrator as Admin
+actor "Monobank API" as Mono << System >>
+
+U <|-- S
+U <|-- I
+U <|-- Admin
+
+rectangle "Dance Studio Management System" {
+    usecase "UC_ViewSchedule\n(View Schedule & Halls)" as UC_View
+    usecase "UC_ManageSchedule\n(Manage Schedule & Halls)" as UC_Manage
+    usecase "UC_BookLesson\n(Book a Spot in Class)" as UC_Book
+    usecase "UC_Pay\n(Initiate Payment Session)" as UC_Pay
+    usecase "UC_CancelBooking\n(Cancel Booking)" as UC_Cancel
+    usecase "UC_ProcessWebhook\n(Process Payment Webhook)" as UC_Webhook
+
+    U --> UC_View
+    Admin --> UC_Manage
+    
+    S --> UC_Book
+    S --> UC_Pay
+    S --> UC_Cancel
+
+    UC_Book .> UC_Pay : <<include>>
+    UC_Webhook .> UC_Book : <<include>>
+    Mono --> UC_Webhook
+}
+@enduml

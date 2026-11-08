@@ -44,3 +44,8 @@ During the iterative audit of the specification against the declarative ER model
 * **Role of AI:** AI was used as an advisory tool to draft `spec.md`, validate normalization criteria (3NF), and audit cardinality syntax in PlantUML.
 * **Original Work:** The declarative diagram code (`diagram.puml`), entity structure, and final relationship decomposition were developed independently.
 * **Prompt Logs:** Key AI prompts are stored in the repository at `ai/prompts.md`.
+
+### ADR:
+• **Decision:** Enforcement of Third Normal Form (3NF) by avoiding composite primary keys in the associative `Booking` entity and storing hall capacity exclusively in the `Hall` table.  
+• **Alternative:** Using composite keys (`student_id + lesson_id`) directly in `Booking` or duplicating physical room capacity insideтена the `Lesson` entity for quick reads.  
+• **Why have chosen:** Avoiding composite keys and keeping atomic `id : uuid` prevents partial functional dependencies (2NF violation), while separating physical room size (`Hall.capacity`) from administrative group limits (`Lesson.max_capacity`) prevents data duplication and update anomalies (3NF violation).

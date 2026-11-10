@@ -1,0 +1,98 @@
+@startuml
+title UC01 / Scenario 1.1: Successful lesson booking and payment via Monobank
+
+actor "Student" as Student
+participant "API Gateway" as Gateway
+participant "Booking Service" as BookingService
+participant "Payment Service" as PaymentService
+participant "Monobank API" as MonobankAPI
+database "PostgreSQL" as DB
+
+== Booking creation (steps 1-7) ==
+
+Student -> Gateway: POST /api/v1/bookings (lesson_id)
+activate Gateway
+
+Gateway -> Gateway: validateToken(authToken)
+activate Gateway
+deactivate Gateway
+
+Gateway -> BookingService: createBooking(student_id, lesson_id)
+activate BookingService
+
+BookingService -> DB: BEGIN; SELECT l.max_capacity, h.capacity\nFROM lessons l JOIN halls h ON h.id = l.hall_id\nWHERE l.id = :lesson_id FOR UPDATE OF l
+activate DB
+DB --> BookingService: max_capacity, hall_capacity
+deactivate DB
+
+BookingService -> DB: SELECT COUNT(*) FROM bookings\nWHERE lesson_id = :lesson_id AND status = 'confirmed'
+activate DB
+DB --> BookingService: confirmed_count
+deactivate DB
+
+BookingService -> BookingService: hasFreeSlots(min(max_capacity, hall_capacity), confirmed_count)
+activate BookingService
+deactivate BookingService
+
+BookingService -> DB: INSERT INTO bookings(student_id, lesson_id,\nstatus='pending_payment', booked_at=now()); COMMIT
+activate DB
+DB --> BookingService: booking_id
+deactivate DB
+
+BookingService -> PaymentService: initPaymentSession(booking_id)
+activate PaymentService
+
+PaymentService -> MonobankAPI: POST /api/merchant/invoice/create (amount, reference=booking_id)
+activate MonobankAPI
+MonobankAPI --> PaymentService: 200 OK (invoiceId, pageUrl)
+deactivate MonobankAPI
+
+PaymentService -> DB: INSERT INTO payments(booking_id, monobank_invoice_id,\namount, status='pending_payment', created_at=now())
+activate DB
+DB --> PaymentService: payment_id
+deactivate DB
+
+PaymentService --> BookingService: paymentSessionCreated(pageUrl)
+deactivate PaymentService
+
+BookingService --> Gateway: 201 Created (booking_id, pageUrl)
+deactivate BookingService
+
+Gateway --> Student: 201 Created (redirect to pageUrl)
+deactivate Gateway
+
+== Payment (step 8) ==
+
+Student -> MonobankAPI: pay(invoiceId) in Monobank app
+activate MonobankAPI
+MonobankAPI --> Student: payment accepted
+deactivate MonobankAPI
+
+== Webhook processing (steps 9-10) ==
+
+MonobankAPI -> PaymentService: POST /api/webhooks/monobank (X-Sign, payload status='success')
+activate PaymentService
+
+PaymentService -> PaymentService: verifyEcdsaSha256(X-Sign, payload)
+activate PaymentService
+deactivate PaymentService
+
+alt signature is valid
+    PaymentService -> DB: SELECT id, booking_id FROM payments\nWHERE monobank_invoice_id = :invoiceId
+    activate DB
+    DB --> PaymentService: payment_id, booking_id
+    deactivate DB
+
+    PaymentService -> DB: BEGIN; UPDATE payments SET status='confirmed';\nUPDATE bookings SET status='confirmed'\nWHERE id = :booking_id; COMMIT
+    activate DB
+    DB --> PaymentService: updated (payment, booking)
+    deactivate DB
+
+    PaymentService --> MonobankAPI: 200 OK (webhook received)
+    PaymentService -> Student: sendMessage("Booking confirmed")
+else signature is invalid
+    PaymentService --> MonobankAPI: 400 Bad Request (invalid signature)
+end
+
+deactivate PaymentService
+@enduml

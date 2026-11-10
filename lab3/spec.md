@@ -61,3 +61,42 @@
 4. 'BookingService' changes status on 'cancelled'.
 5. Amount of available slots for Lesson increments for 1.
 6. Student gets message about successful cancelling and instructions for how to get a refund from Admin.
+
+## Audit
+
+### Participants with entities in ER
+
+Student: entity Student, user that initilaises bookings and payment.
+API Gateway: Component of routing and token validation, accepts HTTP requests from client, check JWT token and redirects to microservices.
+BookingService: Business logic of coordinating Lesson, Hall, Booking entities; checks for capacity, blocks FOR UPDATE, takes care of booking statuses.
+PaymentService: Business logic of Payment and external API, initialises payment invoices, processes and checks ECDSA signatures of webhooks.
+MonobankAPI: external integrational payment system, processes transactions in its app and sends asynchronous Webhook.
+PostgreSQL: relational database (tables lessons, halls, bookings, payments), ensures integrity and uniqness of data.
+
+### Steps coincide with Gherkin
+
+The logic of the steps in the diagrams fully covers the behavioral scenarios (Gherkin from Task 2):
+Successful booking: The Gherkin steps "Given student is registered... When student chooses Lesson... Then system registers entry with pending status... redirects to Monobank..." are fully represented in Diagram 1.1.
+ Fully booked class: The step "Then system rejects booking request with error 'Class is full'" is implemented via a capacity check and by returning a 409 Conflict status in Diagram 1.2.
+ 15-minute timeout and errors: The step "When the time reaches 14:15:01 without receiving successful payment..." is handled by a background worker ('BookingTimeoutWorker') and the processing of erroneous webhooks in Diagram 1.3.
+Cancellation by the student: The step "When Student clicks 'Cancel booking'..." is depicted in Diagram 1.4, involving a status change to "cancelled" and the release of the slot.
+
+### Top 3 mismatches
+
+**1.Refining booking status names**
+
+    The Problem: Early Gherkin scenarios used a general "pending" status, which was too vague and didn't clearly state whether the slot was actually blocked for payment.
+
+    The Solution: We updated the status to "pending_payment" across all diagrams and the ER model. This clearly indicates that a spot is temporarily locked while waiting for the bank transaction.
+
+**2.Handling duplicate webhooks (idempotency)**
+
+    The Problem: Payment gateways like Monobank can sometimes send the same webhook notification more than once due to network retries (at-least-once delivery).
+
+    The Solution: We added an idempotency check in Diagram 1.1. Before updating the database, the system checks if the booking is already confirmed. If it is, it skips duplicate processing while still returning a success response to the bank.
+
+**3.Combined capacity check (Lesson vs. Hall limits)**
+
+    The Problem: Initial Gherkin scenarios only checked whether the specific lesson had free space, ignoring the physical limitations of the studio hall itself.
+
+    The Solution: We updated the database queries on the diagrams to evaluate both limits by calculating min(max_capacity, hall_capacity), ensuring the studio never overbooks a room.

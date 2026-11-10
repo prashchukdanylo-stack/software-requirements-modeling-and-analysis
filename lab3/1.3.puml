@@ -1,0 +1,68 @@
+@startuml
+title UC01 / Scenario 1.3: Cancelling booking after timeout or paying error
+
+
+actor "Student" as Student
+participant "Booking Timeout Worker" as Worker
+participant "Payment Service" as PaymentService
+participant "Monobank API" as MonobankAPI
+participant "Booking Service" as BookingService
+database "PostgreSQL" as DB
+
+alt Payment failure received from Monobank API
+MonobankAPI -> PaymentService: POST /api/webhooks/monobank (status='err_declined')
+activate PaymentService
+
+PaymentService -> BookingService: handlePaymentFailure(invoiceId, reason)
+activate BookingService
+
+BookingService -> DB: BEGIN; UPDATE payments set status = 'cancelled' \n WHERE monobank_invoice_id = :invoiceId; \n UPDATE bookings SET status = 'cancelled' \n WHERE id = booking_id; COMMIT
+activate DB
+
+DB --> BookingService: cancelled_success
+deactivate DB
+
+BookingService --> PaymentService: failureHandled
+deactivate BookingService
+
+PaymentService --> MonobankAPI: 200 OK (Webhook recieved)
+PaymentService --> Student: sendMessage("Payment failed, booking cancelled")
+deactivate PaymentService
+else 15-minute timeout reached (NFR-04, REQ-05)
+activate Worker
+Worker -> DB: SELECT id, lesson_id FROM bookings \n WHERE status = 'pending_payment' AND booked_at < NOW() - INTERVAL '15 minutes'
+activate DB
+
+DB --> Worker: expired_booking_list
+deactivate DB
+
+opt expired booking exists
+Worker -> BookingService: cancelExpiredBookings(expired_ids)
+activate BookingService
+
+BookingService -> DB: BEGIN; UPDATE bookings SET status = 'cancelled' \n WHERE id = ANY(:expired_ids); COMMIT
+activate DB
+
+DB --> BookingService: bookings_updated
+deactivate DB
+
+BookingService -> PaymentService: expireInvoiceSessions(expired_ids); COMMIT
+activate PaymentService
+
+PaymentService -> MonobankAPI: POST /api/merchant/invoice/cancel
+activate MonobankAPI
+
+MonobankAPI --> PaymentService: 200 OK
+deactivate MonobankAPI
+
+PaymentService --> BookingService: sessions_cancelled
+deactivate PaymentService
+
+BookingService --> Worker: cleanupCompleted
+deactivate BookingService
+
+Worker --> Student: sendMessage("Payment timeout reached, booking cancelled")
+end
+deactivate Worker
+end
+@enduml

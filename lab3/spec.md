@@ -1,15 +1,15 @@
 ## All actors and entities
 
-- **Student (users з role='STUDENT')**: здійснює пошук, бронювання та оплату занять.
-- **Instructor (users з role='INSTRUCTOR', instructors)**: переглядає розклад та списки записаних студентів.
-- **Administrator (users з role='ADMIN')**: керує розкладом, залами (halls), напрямами (dance_styles) та транзакціями.
-- **Monobank API (External Actor)**: зовнішній платіжний сервіс (створення сесій оплати, надсилання Signed Webhook).
+- **Student (users with role='STUDENT')**: searches for, books, and pays for classes.
+- **Instructor (users with role='INSTRUCTOR', instructors)**: views the schedule and lists of enrolled students.
+- **Administrator (users with role='ADMIN')**: manages the schedule, halls, dance styles, and transactions.
+- **Monobank API (External Actor)**: an external payment service (creates payment sessions, sends signed webhooks).
 - **Backend Domain Services**: APIGateway, BookingService, LessonService, PaymentService, Database (PostgreSQL).
 
 
 ## UC01: Booking and paying for lesson
 
-### Scenario 1.1: Successfull booking and paying using Monobank API
+### Scenario 1.1: Successful booking and paying via Monobank API
 **Initial conditions**: Student is authorised, Lesson has available slots ('current_bookings < capacity').
 
 **Step by step explaining**:
@@ -37,7 +37,7 @@
 6. Student gets HTTP 409 Conflict with localised message "Class is full".
 
 
-### Scenario 1.3: cancelling booking after timeout or paying error
+### Scenario 1.3: cancelling booking after timeout or payment error
 **Initial conditions**: 'booking' entry is created with status 'pending', but payment isn't done for 15 minutes (REQ-05, NFR-04).
 
 **Step by step explaining**: 
@@ -45,7 +45,7 @@
 2. 'BookingTimeoutWorker' detects entries in 'bookings', where 'status = pending' and 'now() - created_at > 15 minutes'.
 3. 'BookingTimeoutWorker' calls 'BookingService' to cancel request.
 4. State change / Webhook processing:
-    - If Monobank returned status 'err_declined' or 15 minutes timeout is over:
+    - If Monobank returned status 'err_declined' or 15 minutes timeout expires:
     - 'BookingService' updates status in 'Database' on 'cancelled'.
     - Unavailable slot returns to access for other users.
     -   For the payment service sends a command to close invoice 'cancelInvoice()'.
@@ -55,7 +55,7 @@
 **Initial conditions**: student has booking with 'pending' or 'confirmed' status.
 
 **Step by step explanation**:
-1. Student clickes "Cancel booking" in his profile.
+1. Student clicks "Cancel booking" in his profile.
 2. 'APIGateway' redirects request 'cancelBooking(booking_id)' to 'BookingService'.
 3. 'BookingService' checks for booking status in 'Database'.
 4. 'BookingService' changes status on 'cancelled'.
@@ -69,9 +69,9 @@
 Student: entity Student, user that initilaises bookings and payment.
 API Gateway: Component of routing and token validation, accepts HTTP requests from client, check JWT token and redirects to microservices.
 BookingService: Business logic of coordinating Lesson, Hall, Booking entities; checks for capacity, blocks FOR UPDATE, takes care of booking statuses.
-PaymentService: Business logic of Payment and external API, initialises payment invoices, processes and checks ECDSA signatures of webhooks.
-MonobankAPI: external integrational payment system, processes transactions in its app and sends asynchronous Webhook.
-PostgreSQL: relational database (tables lessons, halls, bookings, payments), ensures integrity and uniqness of data.
+PaymentService: Business logic of Payment and external API, nitializes payment invoices, processes and checks ECDSA signatures of webhooks.
+MonobankAPI: external integration payment system, processes transactions in its app and sends asynchronous Webhook.
+PostgreSQL: relational database (tables lessons, halls, bookings, payments), ensures integrity and uniqueness of data.
 
 ### Steps coincide with Gherkin
 

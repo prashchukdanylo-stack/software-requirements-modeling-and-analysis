@@ -1,39 +1,41 @@
 ## All actors and entities
 
-- **Student (users with role='STUDENT')**: searches for, books, and pays for classes.
-- **Instructor (users with role='INSTRUCTOR', instructors)**: views the schedule and lists of enrolled students.
-- **Administrator (users with role='ADMIN')**: manages the schedule, halls, dance styles, and transactions.
+- **Student**: searches for, books, and pays for classes.
+- **Instructor**: views the schedule and lists of enrolled students.
+- **Administrator**: manages the schedule, halls, dance styles, and transactions.
 - **Monobank API (External Actor)**: an external payment service (creates payment sessions, sends signed webhooks).
-- **Backend Domain Services**: APIGateway, BookingService, LessonService, PaymentService, Database (PostgreSQL).
+- **Backend Domain Services**: APIGateway, BookingService, PaymentService, Database (PostgreSQL), BookingTimeoutWorker.
 
 
 ## UC01: Booking and paying for lesson
 
 ### Scenario 1.1: Successful booking and paying via Monobank API
-**Initial conditions**: Student is authorised, Lesson has available slots ('current_bookings < capacity').
+**Initial conditions**: Student is authorised, Lesson has available slots (confirmed + pending_payment <
+min(Lesson.max_capacity, Hall.capacity)).
 
 **Step by step explaining**:
 1. Student sends request for booking exact 'lesson_id'.
 2. 'APIGateway' identifies authorisation token and redirects this request to 'BookingService'.
 3. 'BookingService' checks 'Lesson.max_capacity' and 'Hall.capacity' in 'Database'.
-4. 'BookingService' creates entry in 'bookings' table with status 'pending' and fixes timestamp 'created_at'.
+4. 'BookingService' creates entry in 'bookings' table with status 'pending_payment' and fixes timestamp 'booked_at'.
 5. 'BookingService' refers to 'PaymentService' to initialise invoice.
-6. 'Payment Service' calls external 'Monobank API' and gets 'pageUrl' and 'invoiceId'.
+6. 'Payment Service' calls external 'Monobank API' and gets 'pageUrl' and 'invoiceId', gets sum from Lesson.price and saves entry in payments with monobank_invoice_id.
 7. 'BookingService' returns 'pageUrl' to Student.
 8. Student pays for lesson in his Monobank app.
 9. 'Monobank API' sends asynchronous Webhook with ECDSA signature on backend.
-10. 'PaymentService' validates ECDSA SHA-256 signature, updates entry status in 'bookings' on 'confirmed', decrements counter of available slots by one and sends message to Student.
+10. 'PaymentService' validates ECDSA SHA-256 signature, updates entry status in 'bookings' on 'confirmed', sends message to Student.
 
 
 ### Scenario 1.2: attempt to book a slot for the lesson, which is full
-**Initial conditions**: Lesson has 0 available space ('confirmed + pending >= capacity').
+**Initial conditions**: Lesson has 0 available space (confirmed + pending_payment <
+min(Lesson.max_capacity, Hall.capacity)).
 
 **Step by step explaining**:
 1. Student sends request for booking exact 'lesson_id'.
 2. 'APIGateway' identifies authorisation token and redirects this request to 'BookingService'.
-3. 'BookingService' checks 'Lesson.max_capacity' and 'Hall.capacity' in 'Database'.
-4. 'Database' return present status of lesson capacity: 0 slots are available.
-5. 'BookingService' declines request for creating an entry in 'bookings' table.
+3. 'BookingService' checks 'Lesson.max_capacity' and 'Hall.capacity' in 'Database', amount of bookings(confirmed + pending_payment).
+4. 'Database' return count of available slots, 'BookingService' and understands that 0 place is free.
+5. Booking is not created, transaction is rolled back.
 6. Student gets HTTP 409 Conflict with localised message "Class is full".
 
 

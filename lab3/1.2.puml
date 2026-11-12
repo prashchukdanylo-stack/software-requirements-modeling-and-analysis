@@ -1,0 +1,45 @@
+@startuml
+title UC01 / Scenario 1.2: Attempt to book a lesson that is full
+
+actor "Student" as Student
+participant "API Gateway" as Gateway
+participant "Booking Service" as BookingService
+database "PostgreSQL" as DB
+
+Student -> Gateway: POST /api/v1/bookings (lessonId)
+activate Gateway
+
+Gateway -> Gateway: validateToken(authToken)
+activate Gateway
+deactivate Gateway
+
+Gateway -> BookingService: createBooking(studentId, lessonId)
+activate BookingService
+
+group transaction: lesson row is locked until commit or rollback
+    BookingService -> DB: getLessonCapacity(lessonId)
+    activate DB
+    DB --> BookingService: maxCapacity, hallCapacity
+    deactivate DB
+
+    BookingService -> DB: countActiveBookings(lessonId)
+    activate DB
+    DB --> BookingService: activeCount
+    deactivate DB
+
+    BookingService -> BookingService: hasFreeSlots(min(maxCapacity, hallCapacity), activeCount)
+    activate BookingService
+    deactivate BookingService
+
+    alt no free slots (activeCount >= capacity)
+        note over BookingService: rollback, booking is not created
+        BookingService --> Gateway: 409 Conflict (error = "Class is full")
+        Gateway --> Student: 409 Conflict ("Заняття повністю зайняте")
+    else free slots available
+        note over BookingService: continue as Scenario 1.1
+    end
+end
+
+deactivate BookingService
+deactivate Gateway
+@enduml

@@ -1,0 +1,90 @@
+@startuml
+title UC01 / Scenario 1.3: Cancelling booking after timeout or payment error
+
+actor "Student" as Student
+participant "Booking Timeout Worker" as Worker
+participant "Booking Service" as BookingService
+participant "Payment Service" as PaymentService
+participant "Monobank API" as MonobankAPI
+database "PostgreSQL" as DB
+
+alt trigger: Monobank webhook with status err_declined
+    MonobankAPI -> PaymentService: POST /api/webhooks/monobank (X-Sign, payload: invoiceId, status = err_declined)
+    activate PaymentService
+
+    PaymentService -> PaymentService: verifyEcdsaSha256(xSign, payload)
+    activate PaymentService
+    deactivate PaymentService
+
+    alt signature is invalid
+        PaymentService --> MonobankAPI: 400 Bad Request
+    else signature is valid
+        PaymentService -> DB: findPaymentByInvoiceId(invoiceId)
+        activate DB
+        DB --> PaymentService: paymentId, bookingId, studentId, bookingStatus
+        deactivate DB
+
+        alt bookingStatus = pending_payment
+            PaymentService -> BookingService: cancelBooking(bookingId, reason = payment_declined)
+            activate BookingService
+            group transaction
+                BookingService -> DB: cancelBookingAndPayment(bookingId, paymentStatus = cancelled)
+                activate DB
+                DB --> BookingService: cancelled
+                deactivate DB
+            end
+            BookingService --> PaymentService: bookingCancelled
+            deactivate BookingService
+            PaymentService -> Student: sendMessage("Оплата не пройшла, бронювання скасовано")
+        else already processed (cancelled or confirmed)
+            note right: no changes
+        end
+        PaymentService --> MonobankAPI: 200 OK
+    end
+    deactivate PaymentService
+
+else trigger: 15-minute payment window expired (NFR-04, REQ-05)
+    activate Worker
+    loop every minute
+        Worker -> DB: findExpiredBookings(olderThan = 15 min, status = pending_payment)
+        activate DB
+        DB --> Worker: expiredBookingIds
+        deactivate DB
+
+        opt expiredBookingIds is not empty
+            Worker -> BookingService: cancelExpiredBookings(expiredBookingIds)
+            activate BookingService
+
+            group transaction
+                BookingService -> DB: cancelBookings(expiredBookingIds, paymentStatus = expired)
+                activate DB
+                DB --> BookingService: cancelled
+                deactivate DB
+            end
+
+            loop for each expired booking
+                BookingService -> PaymentService: cancelInvoice(bookingId)
+                activate PaymentService
+
+                PaymentService -> DB: findInvoiceByBooking(bookingId)
+                activate DB
+                DB --> PaymentService: invoiceId, studentId
+                deactivate DB
+
+                PaymentService -> MonobankAPI: cancelInvoice(invoiceId)
+                activate MonobankAPI
+                MonobankAPI --> PaymentService: 200 OK
+                deactivate MonobankAPI
+
+                PaymentService -> Student: sendMessage("Час оплати минув, бронювання скасовано")
+                PaymentService --> BookingService: invoiceCancelled
+                deactivate PaymentService
+            end
+
+            BookingService --> Worker: cleanupCompleted
+            deactivate BookingService
+        end
+    end
+    deactivate Worker
+end
+@enduml

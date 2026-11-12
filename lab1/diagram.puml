@@ -44,6 +44,7 @@ entity Lesson {
     * start_time : datetime
     * end_time : datetime
     * max_capacity : int
+    * price : decimal
 }
 
 entity Booking {

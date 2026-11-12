@@ -36,7 +36,7 @@ group transaction: lesson row is locked until commit
     deactivate BookingService
     note right: precondition of 1.1: activeCount < capacity\n(active = confirmed + pending_payment)\notherwise see Scenario 1.2
 
-    BookingService -> DB: saveBooking(studentId, lessonId, status=pending_payment)
+    BookingService -> DB: saveBooking(studentId, lessonId, status = pending_payment)
     activate DB
     DB --> BookingService: bookingId
     deactivate DB
@@ -50,12 +50,12 @@ activate DB
 DB --> PaymentService: amount
 deactivate DB
 
-PaymentService -> MonobankAPI: createInvoice(amount, reference=bookingId)
+PaymentService -> MonobankAPI: createInvoice(amount, reference = bookingId)
 activate MonobankAPI
 MonobankAPI --> PaymentService: 200 OK (invoiceId, pageUrl)
 deactivate MonobankAPI
 
-PaymentService -> DB: savePayment(bookingId, invoiceId, amount, status=pending_payment)
+PaymentService -> DB: savePayment(bookingId, invoiceId, amount, status = pending_payment)
 activate DB
 DB --> PaymentService: paymentId
 deactivate DB
@@ -78,7 +78,7 @@ deactivate MonobankAPI
 
 == Webhook processing (steps 9-10) ==
 
-MonobankAPI -> PaymentService: POST /api/webhooks/monobank (X-Sign, payload)
+MonobankAPI -> PaymentService: POST /api/webhooks/monobank (X-Sign, payload: invoiceId, status = success)
 activate PaymentService
 
 PaymentService -> PaymentService: verifyEcdsaSha256(xSign, payload)
@@ -95,18 +95,20 @@ else signature is valid
 
     alt bookingStatus = confirmed (repeated webhook)
         PaymentService --> MonobankAPI: 200 OK (idempotent, no changes)
+    else bookingStatus = cancelled (late success after timeout)
+        PaymentService --> MonobankAPI: 200 OK (booking is not restored)
+        note right: logged for manual refund (see ADR)
     else bookingStatus = pending_payment and payload.status = success
         group transaction
             PaymentService -> DB: confirmPayment(paymentId, bookingId)
             activate DB
-            DB --> PaymentService: payment=confirmed, booking=confirmed
+            DB --> PaymentService: payment = confirmed, booking = confirmed
             deactivate DB
         end
         PaymentService --> MonobankAPI: 200 OK
         PaymentService -> Student: sendMessage("Бронювання підтверджено")
-
-        else bookingStatus = pending_payment and payload.status != success
-        note right: see Scenario 1.3
+    else bookingStatus = pending_payment and payload.status != success
+        note right: other statuses (err_declined): see Scenario 1.3
     end
 end
 

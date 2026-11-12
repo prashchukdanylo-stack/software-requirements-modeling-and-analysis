@@ -1,53 +1,71 @@
 @startuml
 title UC01 / Scenario 1.4: Student cancels booking
 
-
 actor "Student" as Student
-participant "Booking Timeout Worker" as Worker
 participant "API Gateway" as Gateway
 participant "Booking Service" as BookingService
+participant "Payment Service" as PaymentService
+participant "Monobank API" as MonobankAPI
 database "PostgreSQL" as DB
 
-
-Student -> Gateway: DELETE /api/v1/bookings/{booking_id}
+Student -> Gateway: DELETE /api/v1/bookings/{bookingId}
 activate Gateway
 
 Gateway -> Gateway: validateToken(authToken)
-Gateway -> BookingService: cancelBookingByUser(student_id, booking_id)
+activate Gateway
+deactivate Gateway
+
+Gateway -> BookingService: cancelBookingByUser(studentId, bookingId)
 activate BookingService
 
-BookingService -> DB: BEGIN; SELECT status, lesson_id FROM bookings \n WHERE id = :booking_id AND student_id = :student_id FOR UPDATE
-activate DB
+group transaction: booking row is locked until commit
+    BookingService -> DB: findBookingForStudent(bookingId, studentId)
+    activate DB
+    DB --> BookingService: bookingStatus (or not found)
+    deactivate DB
 
-DB --> BookingService: booking_record(status = 'confirmed' or 'pending_payment')
-deactivate DB
+    alt booking not found or belongs to another student
+        BookingService --> Gateway: 404 Not Found
+        Gateway --> Student: 404 Not Found
+    else bookingStatus = cancelled
+        BookingService --> Gateway: 409 Conflict (already cancelled)
+        Gateway --> Student: 409 Conflict ("Бронювання вже скасовано")
+    else bookingStatus = pending_payment
+        BookingService -> DB: cancelBookingAndPayment(bookingId, paymentStatus = cancelled)
+        activate DB
+        DB --> BookingService: cancelled
+        deactivate DB
 
-BookingService -> DB: UPDATE bookings SET status = 'cancelled' \n WHERE id =:booking_id; COMMIT
+        BookingService -> PaymentService: cancelInvoice(bookingId)
+        activate PaymentService
 
-activate DB
+        PaymentService -> DB: findInvoiceByBooking(bookingId)
+        activate DB
+        DB --> PaymentService: invoiceId, studentId
+        deactivate DB
 
-DB --> BookingService: status_updated_to_cancelled
-deactivate DB
+        PaymentService -> MonobankAPI: cancelInvoice(invoiceId)
+        activate MonobankAPI
+        MonobankAPI --> PaymentService: 200 OK
+        deactivate MonobankAPI
 
-alt booking status was 'confirmed'
-BookingService -> DB: BEGIN; UPDATE lessons SET current_bookings = cuurent_bookings -1 \n WHERE id = :lesson_id; COMMIT
-activate DB
+        PaymentService --> BookingService: invoiceCancelled
+        deactivate PaymentService
 
-DB --> BookingService: slots_freed
-deactivate DB
+        BookingService --> Gateway: 200 OK (booking cancelled)
+        Gateway --> Student: 200 OK ("Бронювання скасовано")
+    else bookingStatus = confirmed
+        BookingService -> DB: cancelBooking(bookingId)
+        activate DB
+        DB --> BookingService: cancelled
+        deactivate DB
+        note right: payments.status stays confirmed:\nmoney was charged, refund is manual
 
-else booking status was 'pending_payment'
-note over BookingService: Slot was only in pending state, no active count to decrement
+        BookingService --> Gateway: 200 OK (booking cancelled, refund is manual)
+        Gateway --> Student: 200 OK ("Бронювання скасовано. Для повернення коштів зверніться до адміністрації.")
+    end
 end
 
-opt manual refund required (out of scope)
-
-BookingService -> BookingService: addManualRefundInstructionNote()
-end
-
-BookingService --> Gateway: 200 OK(booking cancelled successfully)
 deactivate BookingService
-
-Gateway --> Student: 200 OK ("Бронювання скасовано. Для повернення коштів зверніться до адміністрації.")
 deactivate Gateway
 @enduml

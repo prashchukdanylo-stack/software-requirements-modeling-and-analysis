@@ -1,16 +1,29 @@
-## 1. How sequence diagrams detail use case scenarios
 
-The sequence diagrams transform high-level Gherkin scenarios into a concrete, production-ready technical workflow.
-
-* **Microservice communication:** They break down user actions (like clicking "Book and pay") into explicit API calls passing through the 'API Gateway', 'Booking Service', and 'Payment Service`.
-* **Error and alternative handling:** Using explicit conditional blocks ('alt', 'opt'), the diagrams clearly show how the system reacts to edge cases—such as when a class is fully booked, when a 15-minute payment timeout is reached, or when a payment webhook fails.
-* **Concurrency and safety:** They detail how the system prevents race conditions during peak traffic (using database row locking) and handles background automated maintenance tasks (via the 'BookingTimeoutWorker`).
+## Intent and criteria
+Creation of detailed sequence diagrams for use case scenarios from prior labs, that mostly corelate with Gherkin  logic, ER structure and with spec in this lab.
 
 
-## 2. Alignment with the ER Model
+## Top 3 mismatches
+**1. Attribute, which doesn't exist in ER:**
+In diagram 1.4 there was an attribute, that wasn't actually there in ER, and amount of free slots counted differently in 1.1 and 1.2.
+Resolution: estimate count of active bookings with confirmed + pending_payment using countActiveBookings.
+*(Commits: `c5acbfd`, `ecc3791`)*
 
-The architecture shown in the diagrams is 100% bound to the relational database structure defined in ER model:
+**2. Extra participant and low level SQL:**
+In 1.4 there was a lifeline of Booking Timeout Worker without any messages, and in diagrams instead of abstract easy-to-read methods, I have written raw SQL queries.
+Resolution: removed extra lifeline from 1.4, replaced raw SQL with calls like 'getLessonCapacity', 'saveBooking' etc.
+*(Commits: `c5acbfd`, `ecc3791`, `c735494`, `452c0d5`)*
 
-* **Direct entity mapping:** The objects and database queries on the diagrams directly manipulate the core tables ('lessons', 'halls', 'bookings', and 'payments').
-* **State consistency:** The status values used across the diagrams ('pending_payment', 'confirmed', 'cancelled') strictly match the ENUM types defined in the 'Booking' and 'Payment' entities, ensuring data integrity in 3rd Normal Form (3NF).
-* **Capacity rules:** The database queries in the diagrams correctly join 'lessons' and 'halls' to evaluate limits ('min(max_capacity, hall_capacity)'), ensuring that the physical constraints of the dance studio are strictly respected.
+**3. Incorrect usage of deactivation and message arrows:**
+In 1.2 diactivate was only in one alt branch, and in 1.3 Student got messages using '-->'
+Resolution: make deactivation after 'end', changed incorrect arrows on '->'.
+*(Commits: `c735494`, `452c0d5`)*
+
+## ADR
+ **Alternative 1:** to process 15-minute payment timeout using delayed Events, or queue of messages.
+ **Alternative 2:** periodical pull from Database using Booking Timeout Worker.
+
+ **Choice:** I chose 2 alternative, because it is easier to implement, personally.
+
+ ## Verification
+ Checked everywhere status names ('pending_payment, 'confirmed', 'cancelled'), table fields ('max_capacity', 'hall_capacity').

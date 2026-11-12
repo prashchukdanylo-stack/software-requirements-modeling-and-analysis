@@ -9,36 +9,43 @@ participant "Booking Service" as BookingService
 database "Database(PostgreSQL)" as DB
 
 == Attempt booking on a full lesson ==
-Student -> Gateway: POST /api/v1/bookings (lesson_id)
+Student -> Gateway: POST /api/v1/bookings (lessonId)
 activate Gateway
 
 Gateway -> Gateway: validateToken(authToken)
-Gateway -> BookingService: createBooking(student_id, lesson_id)
+activate Gateway
+deactivate Gateway
+
+
+Gateway -> BookingService: createBooking(studentId, lessonId)
 activate BookingService
 
-BookingService -> DB: BEGIN; SELECT l.max_capacity, h.capacity \n FROM lessons l JOIN halls h ON h.id = l.hall_id \n WHERE l.id = :lesson_id FOR UPDATE of l
-activate DB 
+group transaction: lesson row is locked until commit or rollback
 
-DB --> BookingService: max_capacity, hall_capacity
-deactivate DB
+    BookingService -> DB: getLessonCapacity(lessonId)
+    activate DB 
 
-BookingService -> DB: SELECT COUNT(*) FROM bookings \n WHERE lesson_id = :lesson_id AND status IN ('confirmed', 'pending_payment')
-activate DB
-DB --> BookingService: activate_bookings_count (=hall_capacity)
-deactivate DB
+    DB --> BookingService: maxCapacity, hallCapacity
+    deactivate DB
 
-BookingService -> BookingService: hasFreeSlots(min(max_capacity, hall_capacity), active_bookings_count)
+    BookingService -> DB: countActiveBookings(lessonId)
+    activate DB
+    DB --> BookingService: activeCount
+    deactivate DB
 
-alt no free slots available (Capacity reached)
-BookingService -> DB: ROLLBACK
-activate DB
-DB --> BookingService: transaction rolled back
-deactivate DB
-BookingService --> Gateway: 409 conflict (Error: "Class is full")
-deactivate BookingService
-Gateway --> Student: 409 conflict ("Заняття повністю зайняте")
-deactivate Gateway
-else free slots available (Edge case/race condition avoided)
-note over BookingService: Proceed with normal booking flow (Scenario 1.1)
+    BookingService -> BookingService: hasFreeSlots(min(maxCapacity, hallCapacity), activeCount)
+    activate BookingService
+    deactivate BookingService
 end
+
+alt no free slots available (activeCount >= capacity)
+    note over BookingService: rollback, booking is not created
+    BookingService --> Gateway: 409 Conflict (error = "Class is full")
+    Gateway --> Student: 409 Conflict (error = "Заняття повністю зайняте")
+else free slots available
+    note over BookingService: continue as Scenario 1.1
+end
+
+deactivate BookingService
+deactivate Gateway
 @enduml

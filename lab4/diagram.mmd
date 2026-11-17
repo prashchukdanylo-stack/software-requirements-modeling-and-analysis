@@ -14,23 +14,24 @@ flowchart TB
   subgraph CRM["CRM-system"]
     C1["ACCEPT: booking request"] --> C2{"Slots available?<br/>confirmed + pending_payment<br/>&lt; Hall.capacity and Lesson.max_capacity"}
     C2 -- "No" --> C3>"SEND: 409 Conflict, Class is full"]
-    C2 -- "Yes" --> F1["━━ FORK ━━"]
-    F1 --> C4["Branch A: create Booking<br/>status = pending_payment,<br/>created_at = now, block slot"]
-    F1 --> C5>"Branch B: SEND payment session request"]
-    C5 -. "no response in N sec" .-> C6
-    C7["ACCEPT: payment link"]
-    C4 --> J1["━━ JOIN ━━"]
-    C7 --> J1
-    J1 --> C8>"SEND: redirect to payment link"]
-    C8 --> W{{"Wait for first event"}}
+    C2 -- "Yes" --> C4["Create Booking in DB<br/>status = pending_payment,<br/>created_at = now, block slot"]
+    C4 --> C5>"SEND: payment session request<br/>(with bookingId)"]
+    C5 -. "no response / error" .-> C6
+    C7["ACCEPT: payment link"] --> C8>"SEND: redirect to payment link"]
+    
+    C8 --> F1["━━ FORK ━━<br/>(Parallel processing & timeout window)"]
+    
+    F1 --> W["Branch A: Wait for Webhook"]
+    F1 --> T["Branch B: 15 min Timer / Worker"]
+    
     W --> C10["ACCEPT: Webhook"]
-    W --> T["ACCEPT: timer 15 min since created_at<br/>(Student did not pay / no Webhook)"]
     C10 --> V{"Signature valid<br/>SHA-256/ECDSA?"}
     V -- "No" --> L["Ignore, log"] --> W
     V -- "Yes" --> D{"status = success?"}
     D -- "Yes" --> CONF["Booking = confirmed"]
     CONF --> N1>"SEND: success notification"]
     D -- "No (error)" --> C6
+    
     T --> C6["Booking = cancelled,<br/>release slot"]
     C6 --> N2>"SEND: cancellation notice"]
   end

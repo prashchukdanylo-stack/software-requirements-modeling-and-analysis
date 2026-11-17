@@ -4,7 +4,7 @@ For modelling of my business process I chose UML Activity Diagram with Mermaid s
 ## Why I chose it:
 1. Activity Diagram shows what actors do and who sends what to whom. State machine would describe only lifecycle of 'Booking' and hide the message exchange, which is a critical requirement for modelling asynchronous integrations.
 2. Messages have their own notation: sending (send signal) is drawn with flag-shaped node (>), accepting (accept event) is a node with prefix 'ACCEPT:'. Asynchronous Webhook and 15-minute timer are modelled as accepted events.
-3. Clear borders of responsibility (swimlanes): Student, CRM-system, Monobank API clearly divide steps between actors.
+3. Clear borders of responsibility (swimlanes): Student, CRM-system, Monobank API, BookingTimeoutWorker clearly divide steps between actors.
 4. Nodes FORK / JOIN let correctly demonstrate simultaneous blocking of slots in BD (pending_payment) and initialization of payment session in Monobank API (Req-3, Req-4). Mermaid has no built-in fork/join, so they are drawn as separate nodes. Blocks with conditions (diamonds) show check for slots availability, check of Webhook signature and processing 15-minute timeout (Req-2, Req-5).
 5. Diagram is stored as text (diagram.mmd), so it is declarative and the render (diagram.png) is generated from the same source.
 
@@ -27,9 +27,11 @@ For modelling of my business process I chose UML Activity Diagram with Mermaid s
 - Branch A (CRM-system): Waits for an incoming asynchronous Webhook from Monobank API.
 - Branch B (BookingTimeoutWorker): A background worker loops every 1 minute to check for expired unpaid reservations (now() - booked_at > 15 min).
 7. Processing the payment result or timeout (Req-5, NFR-05):
-- Branch 'Invalid Webhook signature': If a Webhook arrives without a valid SHA-256/ECDSA signature (NFR-05), it is ignored and logged, and CRM-system continues to wait.
-- Branch 'Successful payment': A valid Webhook with success status is received. CRM-system updates Booking status to confirmed and sends a success notification to the Student. (Since the slot was already counted under pending_payment, available capacity does not need to be decremented again).
-- Branch 'Payment error (err_declined) or 15-minute timeout': If Monobank returns an error status or the BookingTimeoutWorker detects that 15 minutes have passed, CRM-system updates Booking status to cancelled, invokes cancelInvoice to close the invoice in Monobank, releases the slot, and sends a cancellation notice to the Student.
+- Branch 'Invalid Webhook signature': If a Webhook arrives without a valid SHA-256/ECDSA signature (NFR-05), it is ignored and logged, the CRM-system responds with HTTP 400 Bad Request to Monobank API, and continues to wait.
+- Branch 'Idempotent duplicate (already confirmed)': If a duplicate Webhook arrives for a booking that is already confirmed, the CRM-system does not mutate the state and responds with HTTP 200 OK to ensure safe gateway retries.
+- Branch 'Late Webhook after timeout (already cancelled)': If a valid 'success' Webhook arrives after the 15-minute timeout has already cancelled the booking, the CRM-system keeps the cancelled state, logs the event for a manual administrative refund (manual refund), and responds with HTTP 200 OK.
+- Branch 'Successful payment (normal flow)': A valid Webhook with success status is received for a pending_payment booking. CRM-system updates Booking status to confirmed and sends a success notification to the Student (along with HTTP 200 OK to Monobank).
+- Branch 'Payment error (err_declined) or 15-minute timeout': If Monobank returns an error status or the BookingTimeoutWorker detects that 15 minutes have passed, CRM-system updates Booking status to cancelled, invokes cancelInvoice to close the invoice, releases the slot, and sends a cancellation notice.
 ## Signals and events
 
 1. Student sends signal 'query for booking a place at Lesson' to CRM-system, if there is no response, 'Student' sees a notification about 'connection error' or 'timeout', BD isn't changed.
@@ -39,5 +41,5 @@ For modelling of my business process I chose UML Activity Diagram with Mermaid s
 5. CRM-system sends signal 'redirect to payment link' to Student, if Student doesn't pay during 15-minute gap, CRM-system cancels Booking.
 6. Student sends signal 'transaction approvement in Monobank app' to Monobank API, if Monobank API doesn't send Webhook during 15-minute gap, CRM-system cancels Booking.
 7. BookingTimeoutWorker sends signal to CRM-system / Monobank API: cancelExpiredBookings & cancelInvoice(invoiceId) when the 15-minute window expires.
-8. Monobank API sends signal 'asynchronous Webhook with transaction status' to CRM-system, if there is no successful Webhook after 15 minutes, status is changed to 'cancelled', a slot gets available.
+8. Monobank API sends signal 'asynchronous Webhook with transaction status' to CRM-system, CRM-system responds with HTTP 200 OK(for successful, idempotent, or late webhook) or HTTP 400 Bad Request (for invalid signatures).
 9. CRM-system sends signal 'notification about successful booking' or 'notification about cancellation' to Student, if Student doesn't receive it, status of 'Booking' in BD is already final and isn't changed.

@@ -25,13 +25,23 @@ flowchart TB
     
     W --> C10["ACCEPT: Webhook"]
     C10 --> V{"Signature valid<br/>SHA-256/ECDSA?"}
-    V -- "No" --> L["Ignore, log"] --> W
-    V -- "Yes" --> D{"status = success?"}
+    V -- "No" --> R400>"SEND: HTTP 400 Bad Request<br/>(Log invalid signature)"] --> W
+    
+    V -- "Yes" --> S{"Check current<br/>Booking status"}
+    
+    S -- "confirmed" --> R200A["Idempotent duplicate:<br/>SEND: HTTP 200 OK<br/>(No state change)"] --> W
+    
+
+    S -- "cancelled" --> R200B["Late Webhook after timeout:<br/>Log for manual refund<br/>SEND: HTTP 200 OK"] --> W
+    
+    S -- "pending_payment" --> D{"Webhook status<br/>= success?"}
+    
     D -- "Yes" --> CONF["Booking = confirmed"]
-    CONF --> N1>"SEND: success notification"]
+    CONF --> N1>"SEND: success notification &<br/>SEND: HTTP 200 OK"]
+    
     D -- "No (err_declined)" --> C6
     
-    C6["Booking = cancelled,<br/>release slot"] --> N2>"SEND: cancellation notice"]
+    C6["Booking = cancelled,<br/>release slot"] --> N2>"SEND: cancellation notice &<br/>SEND: HTTP 200 OK"]
   end
 
   subgraph WK["BookingTimeoutWorker"]

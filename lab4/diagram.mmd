@@ -1,0 +1,55 @@
+flowchart TB
+  subgraph ST["Student"]
+    S0(("Start")) --> S1["Choose lesson,<br/>press 'Book and pay'"]
+    S1 --> S2>"SEND: booking request"]
+    S2 -. "no response" .-> S2E["Show 'connection error / timeout'<br/>(DB unchanged)"]
+    S2E --> E0(("End:<br/>no booking"))
+    S3["ACCEPT: error 'Class is full'"] --> E1(("End:<br/>rejected"))
+    S5["ACCEPT: redirect,<br/>open Monobank payment page"] --> S6["Approve payment<br/>in Monobank app"]
+    S6 --> S7>"SEND: transaction approval"]
+    S8["ACCEPT: booking confirmation"] --> E2(("End:<br/>confirmed"))
+    S9["ACCEPT: cancellation notice"] --> E3(("End:<br/>cancelled"))
+  end
+
+  subgraph CRM["CRM-system"]
+    C1["ACCEPT: booking request"] --> C2{"Slots available?<br/>confirmed + pending_payment<br/>&lt; Hall.capacity and Lesson.max_capacity"}
+    C2 -- "No" --> C3>"SEND: 409 Conflict, Class is full"]
+    C2 -- "Yes" --> F1["━━ FORK ━━"]
+    F1 --> C4["Branch A: create Booking<br/>status = pending_payment,<br/>created_at = now, block slot"]
+    F1 --> C5>"Branch B: SEND payment session request"]
+    C5 -. "no response in N sec" .-> C6
+    C7["ACCEPT: payment link"]
+    C4 --> J1["━━ JOIN ━━"]
+    C7 --> J1
+    J1 --> C8>"SEND: redirect to payment link"]
+    C8 --> W{{"Wait for first event"}}
+    W --> C10["ACCEPT: Webhook"]
+    W --> T["ACCEPT: timer 15 min since created_at<br/>(Student did not pay / no Webhook)"]
+    C10 --> V{"Signature valid<br/>SHA-256/ECDSA?"}
+    V -- "No" --> L["Ignore, log"] --> W
+    V -- "Yes" --> D{"status = success?"}
+    D -- "Yes" --> CONF["Booking = confirmed"]
+    CONF --> N1>"SEND: success notification"]
+    D -- "No (error)" --> C6
+    T --> C6["Booking = cancelled,<br/>release slot"]
+    C6 --> N2>"SEND: cancellation notice"]
+  end
+
+  subgraph MB["Monobank API"]
+    M1["ACCEPT: session request"] --> M2{"Session created?"}
+    M2 -- "Yes" --> M3>"SEND: payment link"]
+    M2 -- "No" --> M4>"SEND: error"]
+    M5["ACCEPT: transaction approval"] --> M6["Process card transaction"]
+    M6 --> M7>"SEND: async Webhook (status)"]
+  end
+
+  S2 --> C1
+  C3 --> S3
+  C5 --> M1
+  M3 --> C7
+  M4 --> C6
+  C8 --> S5
+  S7 --> M5
+  M7 --> C10
+  N1 --> S8
+  N2 --> S9

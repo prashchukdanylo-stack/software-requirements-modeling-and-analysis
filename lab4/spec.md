@@ -10,27 +10,26 @@ For modelling of my business process I chose UML Activity Diagram with Mermaid s
 
 # Participants of process
 1. Student: main user of studio. Chooses lesson, initiates booking, approves payment operations in Monobank app.
-2. CRM-system: checks for available slots (Hall.capacity and Lesson.max_capacity), operates lifecycle of 'Booking' (from pending_payment to confirmed/cancelled), verifies Webhook signature and controls 15-minute payment window (NFR-04, NFR-05).
-3. Monobank API: External service that generates payment session, processes Student's card transaction and sends Webhook with payment status.
+2. CRM-system: checks for available slots (Hall.capacity and Lesson.max_capacity), operates lifecycle of 'Booking' (from pending_payment to confirmed/cancelled), verifies Webhook signature (NFR-04, NFR-05).
+3. BookingTimeoutWorker: Background microservice/worker component. Periodically polls the database (every 1 minute) to detect pending reservations that have exceeded the 15-minute TTL (now() - booked_at > 15 min), automatically revoking them and triggering invoice cancellation.
+4. Monobank API: External service that generates payment session, processes Student's card transaction and sends Webhook with payment status.
 
 # Steps, messages, branching
 ## Steps
-1. Booking initialisation: Student chooses active Lesson and clicks "Book and pay", sending a query to CRM-system.
-- If there is no response, Student sees 'connection error' or 'timeout', BD isn't changed and the process finishes.
-2. Availability checking: CRM-system checks, if amount of active bookings (confirmed + pending_payment) is less than Hall.capacity and Lesson.max_capacity.
-- Branch "No" (no available slots): System rejects query with error "Class is full" (409 Conflict), tells Student about it and finishes the process. 'Booking' isn't created in BD.
-- Branch "Yes" (there is some available place): Process goes to block of parallel execution (fork).
-3. Parallel processing (fork -- Req-1, Req-3, Req-4):
-- Branch A (Blocking slot in BD): CRM-system creates 'Booking' with 'pending_payment' status, fixates creation time (created_at) to count 15 minutes (NFR-04), blocking this place from booking by other students.
-- Branch B (payment initialisation): CRM-system sends request to create payment session to 'Monobank API'. External service generates a link for payment and returns it to CRM, or returns an error.
-- If 'Monobank API' returned an error or didn't respond in N seconds, the process doesn't go to join: 'Booking' status changes to 'cancelled', the blocking of slot is released and Student gets notification about cancellation.
-4. Redirecting to link and payment: after flows' synchronisation (join) CRM-system redirects Student to Monobank payment page. Student approves payment in Monobank app, and Monobank API processes the card transaction and sends Webhook to CRM-system.
-5. Processing the payment result (Req-5, NFR-05):
-- CRM-system waits for the first of two events: Webhook from 'Monobank API' or end of 15 minutes from the moment of creation 'Booking'.
-- Branch 'Invalid signature': Webhook without valid SHA-256/ECDSA signature is ignored and logged, CRM-system continues to wait (timer keeps running).
-- Branch 'Successful payment': valid Webhook (with check of SHA-256/ECDSA) with 'success' status was received. CRM-system changes 'Booking' status to 'confirmed' and sends notification to 'Student' about successful registration for 'Lesson'. The place is already counted since 'pending_payment', so amount of available slots isn't changed again.
-- Branch 'Error or 15-minute timeout': if valid Webhook has transaction error or 15 minutes passed from creation of 'Booking' without successful Webhook, CRM-system changes 'Booking' status to 'cancelled', releases the blocking of slot and sends notification to 'Student' about cancellation.
-
+1. Booking initialisation: Student chooses active Lesson and clicks "Book and pay", sending a query to CRM-system. If there is no response, Student sees 'connection error' or 'timeout', BD isn't changed and the process finishes.
+2. Availability checking: CRM-system checks if the amount of active bookings (confirmed + pending_payment) is less than Hall.capacity and Lesson.max_capacity.
+- Branch "No" (no available slots): System rejects query with error 409 Conflict (Class is full), tells Student about it and finishes the process. 'Booking' is not created in BD.
+- Branch "Yes" (there is a free place): Process proceeds to booking and payment initialization.
+3. Booking creation in DB: CRM-system creates a record in the bookings table with status pending_payment, fixes the creation timestamp (created_at = now), and blocks the slot from being booked by other students (Req-1, Req-4).
+4. Payment session initialization: CRM-system sends a request (createInvoice) to Monobank API passing the bookingId as a reference (Req-3). If Monobank API returns an error or does not respond in N seconds, the transaction is rolled back, the Booking status becomes cancelled, the slot is released, and the Student gets a notification.
+5. Redirecting to payment: Upon receiving the payment link (pageUrl), the CRM-system redirects the Student to the Monobank payment page.
+6. Parallel processing / Monitoring (FORK): After redirecting, the process splits into two independent asynchronous paths (NFR-04, Req-5):
+- Branch A (CRM-system): Waits for an incoming asynchronous Webhook from Monobank API.
+- Branch B (BookingTimeoutWorker): A background worker loops every 1 minute to check for expired unpaid reservations (now() - booked_at > 15 min).
+7. Processing the payment result or timeout (Req-5, NFR-05):
+- Branch 'Invalid Webhook signature': If a Webhook arrives without a valid SHA-256/ECDSA signature (NFR-05), it is ignored and logged, and CRM-system continues to wait.
+- Branch 'Successful payment': A valid Webhook with success status is received. CRM-system updates Booking status to confirmed and sends a success notification to the Student. (Since the slot was already counted under pending_payment, available capacity does not need to be decremented again).
+- Branch 'Payment error (err_declined) or 15-minute timeout': If Monobank returns an error status or the BookingTimeoutWorker detects that 15 minutes have passed, CRM-system updates Booking status to cancelled, invokes cancelInvoice to close the invoice in Monobank, releases the slot, and sends a cancellation notice to the Student.
 ## Signals and events
 
 1. Student sends signal 'query for booking a place at Lesson' to CRM-system, if there is no response, 'Student' sees a notification about 'connection error' or 'timeout', BD isn't changed.
@@ -39,5 +38,6 @@ For modelling of my business process I chose UML Activity Diagram with Mermaid s
 4. Monobank API sends signal 'payment link' (or 'error') to CRM-system, if it is 'error', 'Booking' status becomes 'cancelled'.
 5. CRM-system sends signal 'redirect to payment link' to Student, if Student doesn't pay during 15-minute gap, CRM-system cancels Booking.
 6. Student sends signal 'transaction approvement in Monobank app' to Monobank API, if Monobank API doesn't send Webhook during 15-minute gap, CRM-system cancels Booking.
-7. Monobank API sends signal 'asynchronous Webhook with transaction status' to CRM-system, if there is no successful Webhook after 15 minutes, status is changed to 'cancelled', a slot gets available.
-8. CRM-system sends signal 'notification about successful booking' or 'notification about cancellation' to Student, if Student doesn't receive it, status of 'Booking' in BD is already final and isn't changed.
+7. BookingTimeoutWorker sends signal to CRM-system / Monobank API: cancelExpiredBookings & cancelInvoice(invoiceId) when the 15-minute window expires.
+8. Monobank API sends signal 'asynchronous Webhook with transaction status' to CRM-system, if there is no successful Webhook after 15 minutes, status is changed to 'cancelled', a slot gets available.
+9. CRM-system sends signal 'notification about successful booking' or 'notification about cancellation' to Student, if Student doesn't receive it, status of 'Booking' in BD is already final and isn't changed.

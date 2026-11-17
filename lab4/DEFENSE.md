@@ -21,6 +21,11 @@ Criteria: there is at least 1 branching and 1 parallel branch, every message has
 7. Scenario 1.4: Student cancels Booking is a separate process of UC01, so it is not drawn here. If Student cancels 'Booking' while payment is pending, late 'success' Webhook is handled by branch W as late Webhook for 'cancelled' booking.
 8. Status 'pending' (Lab1) vs 'pending_payment' (UC, Sequence): diagram uses 'pending_payment'; Req-1 and Gherkin should be updated.
 
+
+## Top-3 mismatches (spec → artifact) + commits:
+1. Fork in booking creation (all details are in Audit.md): <590ebd1>
+
+
 ## ADR
 **Decision:** where to put the parallel part, and how to finish it.
 

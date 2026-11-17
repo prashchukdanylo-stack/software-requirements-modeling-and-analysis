@@ -19,10 +19,9 @@ flowchart TB
     C5 -. "no response / error" .-> C6
     C7["ACCEPT: payment link"] --> C8>"SEND: redirect to payment link"]
     
-    C8 --> F1["━━ FORK ━━<br/>(Parallel processing & timeout window)"]
+    C8 --> F1["━━ FORK ━━<br/>(Async parallel paths)"]
     
     F1 --> W["Branch A: Wait for Webhook"]
-    F1 --> T["Branch B: 15 min Timer / Worker"]
     
     W --> C10["ACCEPT: Webhook"]
     C10 --> V{"Signature valid<br/>SHA-256/ECDSA?"}
@@ -30,10 +29,15 @@ flowchart TB
     V -- "Yes" --> D{"status = success?"}
     D -- "Yes" --> CONF["Booking = confirmed"]
     CONF --> N1>"SEND: success notification"]
-    D -- "No (error)" --> C6
+    D -- "No (err_declined)" --> C6
     
-    T --> C6["Booking = cancelled,<br/>release slot"]
-    C6 --> N2>"SEND: cancellation notice"]
+    C6["Booking = cancelled,<br/>release slot"] --> N2>"SEND: cancellation notice"]
+  end
+
+  subgraph WK["BookingTimeoutWorker"]
+    F1 -.-> W1["Branch B: Loop every 1 min:<br/>findExpiredBookings"]
+    W1 --> W2>"SEND: cancelExpiredBookings"]
+    W2 --> W3["ACCEPT: cleanupCompleted"]
   end
 
   subgraph MB["Monobank API"]
@@ -42,6 +46,7 @@ flowchart TB
     M2 -- "No" --> M4>"SEND: error"]
     M5["ACCEPT: transaction approval"] --> M6["Process card transaction"]
     M6 --> M7>"SEND: async Webhook (status)"]
+    M8["ACCEPT: cancelInvoice"] --> M9["Invoice cancelled"]
   end
 
   S2 --> C1
@@ -54,3 +59,6 @@ flowchart TB
   M7 --> C10
   N1 --> S8
   N2 --> S9
+  W2 --> C6
+  C6 --> W3
+  C6 --> M8

@@ -45,7 +45,7 @@ Api - IRestAPI
 Idn - IAuth
 Sch - ISchedule
 Book - IBooking
-Pay - IBookingState
+Book - IBookingState
 Pay - IPayment
 Pay - IWebhook
 Notif - INotify

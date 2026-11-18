@@ -5,27 +5,28 @@ title Component Diagram -- Dance Studio CRM
 actor "Student / Instructor / Administrator" as Actors
 
 package "Dance Studio CRM (border of system)" {
-package "Presentation" {
-component "Web UI" as WebUI
+  package "Presentation" {
+    component "Web UI" as WebUI
+  }
+
+  package "Backend (Node.js 20+)" {
+    component "API Gateway" as Api
+    component "Identity Service" as Idn
+    component "Schedule Service" as Sch
+    component "Booking Service" as Book
+    component "Payment Service" as Pay
+    component "BookingTimeoutWorker" as Wrk
+    component "Notification Adapter" as Notif
+  }
+
+  package "Data" {
+    component "Data Access Layer" as DAL
+    database "PostgreSQL" as DB
+  }
 }
 
-package "Backend (Node.js 20+)" {
-component "API Gateway" as Api
-component "Identity Service" as Idn
-component "Schedule Service" as Sch
-component "Booking Service" as Book
-component "Payment Service" as Pay
-component "BookingTimeoutWorker" as Wrk
-component "Notification Adapter" as Notif
-}
-
-package "Data" {
-component "Data Access Layer" as DAL
-database "PostgreSQL" as DB
-}
-}
 package "External System (out of border)" {
-component "Monobank API" as Mono
+  component "Monobank API" as Mono
 }
 
 () "IRestAPI" as IRestAPI
@@ -44,7 +45,7 @@ Api - IRestAPI
 Idn - IAuth
 Sch - ISchedule
 Book - IBooking
-Book - IBookingState
+Pay - IBookingState
 Pay - IPayment
 Pay - IWebhook
 Notif - INotify
@@ -54,18 +55,18 @@ Mono - IPaymentPage
 
 Actors ..> WebUI
 WebUI ..> IRestAPI : requires
-WebUI ..> IPaymentPage : redirect(PageUrl)
-Api ..> IAuth: validateToken
+WebUI ..> IPaymentPage : redirect (pageUrl)
+Api ..> IAuth : validateToken
 Api ..> ISchedule : requires
 Api ..> IBooking : requires
 Api ..> IPayment : requires (admin)
-Book ..> IPayment : initialise invoice / cancelInvoice
-Pay ..> IBookingState : confirm / cancel
+Book ..> IPayment : initialise / cancel invoice
+Pay ..> IBookingState : confirm / cancel booking
 Wrk ..> IBooking : cancelExpiredBookings
 Book ..> INotify : sendMessage
 Pay ..> INotify : sendMessage
 Pay ..> IMonobank : createInvoice / cancelInvoice
-Mono ..> IWebhook : signed webhook (повз Gateway)
+Mono ..> IWebhook : signed webhook (bypassing API Gateway)
 Idn ..> IRepository
 Sch ..> IRepository
 Book ..> IRepository

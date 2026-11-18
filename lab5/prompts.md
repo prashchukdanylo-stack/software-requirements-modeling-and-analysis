@@ -164,3 +164,23 @@ DAL --> DB : SQL
         Ізоляція бази даних: Усі сервіси та воркер звертаються до бази виключно через DAL (Idn --> IRepository, DAL --> DB), що гарантує правильне шарування.
 
         Фоновий процес: Wrk (BookingTimeoutWorker) коректно взаємодіє з сервісом бронювання (IBooking)."
+
+### Prompt 3: check for validity of mismatches
+
+* **Request:** "### 6.4 Top-3 mismatches:
+#### 1. Bypassing the API Gateway for External Webhooks (Webhook Bypass)
+The Mismatch: The current architecture uses the API Gateway as the primary entry point for client requests. However, Monobank webhooks introduce a separate external entry point directly to the Payment Service, bypassing the Gateway. This is justified by the requirement for rapid verification of the cryptographic ECDSA signature (NFR-05). Nevertheless, it creates a second entry point into the system.
+##### 2. Cyclic Dependency and Two-Way Coordination Between Booking and Payment Services
+The Mismatch: According to the business logic of the scenarios, the Booking Service invokes the Payment Service to initiate an invoice; subsequently, while processing a webhook, the Payment Service must call back the Booking Service to update the booking status (IBookingState). This creates a direct cyclic dependency between the services, increasing coupling and requiring careful interface design to maintain component independence and testability.
+#### 3. Incomplete Isolation of the Notification Adapter from External Services
+The Notification Adapter is described as an internal component responsible for sending messages via sendMessage(). However, the external SMS/email delivery provider and the interface for interacting with it are not defined.
+This creates an architectural ambiguity: it is unclear whether the Notification Adapter sends messages itself or delegates this responsibility to an external service. Як ти оціниш валідність цих 3 розбіжностей?".
+* **Result:** "Це саме той рівень академічної та технічної зрілості, який потрібен для архітектурного звіту (Lab 5). Замість чіпляння до дрібниць на кшталт назв полів у базі, тут показані реальні системні виклики та архітектурні компроміси (trade-offs), з якими стикаються при переході від бізнес-процесів до мікросервісної/компонентної архітектури:
+
+    Інтеграційний компроміс (Webhook bypass через безпеку).
+
+    Проєктувальний виклик (Циклічні залежності між сервісами бронювання та оплати).
+
+    Межі відповідальності (Невизначеність зовнішнього провайдера в адаптері нотифікацій).
+
+Єдина дрібниця — поправ вирівнювання заголовочних тегів (у другому пункті випадково стоїть ##### 2. замість #### 2.)."

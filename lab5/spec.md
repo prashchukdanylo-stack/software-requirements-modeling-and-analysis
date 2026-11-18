@@ -96,3 +96,11 @@ Fully traced chain (Req, Gherkin, Lab3, Lab4, component): the booking and paymen
 * **Layers:** Web UI never calls the database, access to the database is only through Data Access Layer.
 * **Webhook:** 'IWebhook' belongs to Payment Service, not to API Gateway. It matches Lab3 1.3B and NFR-05 (signature is checked in Payment Service).
 
+### 6.4 Top-3 mismatches:
+#### 1. Bypassing the API Gateway for External Webhooks (Webhook Bypass)
+The Mismatch: The current architecture uses the API Gateway as the primary entry point for client requests. However, Monobank webhooks introduce a separate external entry point directly to the Payment Service, bypassing the Gateway. This is justified by the requirement for rapid verification of the cryptographic ECDSA signature (NFR-05). Nevertheless, it creates a second entry point into the system.
+#### 2. Cyclic Dependency and Two-Way Coordination Between Booking and Payment Services
+The Mismatch: According to the business logic of the scenarios, the Booking Service invokes the Payment Service to initiate an invoice; subsequently, while processing a webhook, the Payment Service must call back the Booking Service to update the booking status (IBookingState). This creates a direct cyclic dependency between the services, increasing coupling and requiring careful interface design to maintain component independence and testability.
+#### 3. Incomplete Isolation of the Notification Adapter from External Services
+The Notification Adapter is described as an internal component responsible for sending messages via sendMessage(). However, the external SMS/email delivery provider and the interface for interacting with it are not defined.
+This creates an architectural ambiguity: it is unclear whether the Notification Adapter sends messages itself or delegates this responsibility to an external service.

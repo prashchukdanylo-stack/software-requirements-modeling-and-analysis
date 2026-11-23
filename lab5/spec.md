@@ -1,7 +1,7 @@
 # Architecture model
 
 **System:** Dance Studio CRM.
-**Notation:** UML Component diagram (PlantUML - BackendAndInterfaces.puml, contextAndSystemBoundaries.puml), render -- architecture.html.
+**Notation:** UML Component diagram (PlantUML - BackendAndInterfaces.puml, contextAndSystemBoundaries.puml), renders -- BackendAndInterfaces.svg, contextAndSystemBoundaries.svg.
 **Context and model chain:** 
 - Lab1(ER): data model, used: Student, Instructor, DanceStyle, Hall, Lesson, Booking, Administrator, Payment; relations and keys.
 - Lab2: Requirements: actors from 1.1, out-of-scope from 1.2, EARS Req-1..6, NFR-01..07, Gherkin G1-G4, traceability matrix; functions, restrictions, borders.

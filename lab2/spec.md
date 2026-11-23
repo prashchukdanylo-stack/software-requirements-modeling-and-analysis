@@ -25,9 +25,9 @@ The following features are intentionally excluded from the system scope for this
 
 ## 2.1 EARS Requirements
 
-* **Req-1(ubiquitous):** system SHALL maintain a Booking record with state strictly constrained to one of: pending, confirmed, cancelled.
-* **Req-2(event-driven):** WHEN Student requests to book a Lesson, system SHALL check if current confirmed + pending bookings are less than Hall.capacity AND Lesson.max_capacity.
-* **Req-3(event-driven):** WHEN Booking creation is successful with status "pending", system SHALL initialise payment session using Monobank API and generate link for payment.
+* **Req-1(ubiquitous):** system SHALL maintain a Booking record with state strictly constrained to one of: pending_payment, confirmed, cancelled.
+* **Req-2(event-driven):** WHEN Student requests to book a Lesson, system SHALL check if current confirmed + pending_payment bookings are less than Hall.capacity AND Lesson.max_capacity.
+* **Req-3(event-driven):** WHEN Booking creation is successful with status "pending_payment", system SHALL initialise payment session using Monobank API and generate link for payment.
 * **Req-4(state-driven):** WHILE system is processing payment creation, it SHALL block an ability to book that same place at the same Lesson to prevent double-booking of the same spot.
 * **Req-5(unwanted event):** IF Monobank API returns a transaction error, or a 15-minute payment timeout is reached, THEN system SHALL change Booking status for "cancelled" and stop blocking that place from being booked.
 * **REQ-06 (Ubiquitous):** The system SHALL perform automatic background database integrity and consistency checks.
@@ -37,7 +37,7 @@ The following features are intentionally excluded from the system scope for this
 * **NFR-01:** The Web application ui SHALL support Google Chrome (v110+), Mozilla Firefox(v110+), Safari(v16+) on mobile devices (IOS 15+, Android 10+) and desktop systems (resolution from 360px up to 1920 x 1080).
 * **NFR-02:** The system backend SHALL process up to 50 concurrent booking requests per second during peak schedule opening times, with a baseline average load of 5 requests per second. If traffic exceeds 50 requests per second, extra requests SHALL be queued up to a capacity limit of 200 requests before returning an error "too many requests".
 * **NFR-03:** The API response time for booking creation and schedule queries SHALL NOT exceed 300ms at 95th percentile under normal load, measured from client HTTP request to HTTP response payload delivery.
-* **NFR-04:** Payment hold window for any pending booking SHALL be strictly bounded to 15 minutes from creation timestamp.
+* **NFR-04:** Payment hold window for any pending_payment booking SHALL be strictly bounded to 15 minutes from creation timestamp.
 * **NFR-05:** Webhook endpoints from Monobank API SHALL validate SHA-256 digital signatures using ECDSA public keys provided by Monobank. All student personal data (emails, full names)
  SHALL be encrypted at rest (AES-256) and transmitted via TLS 1.3 over HTTPS.
 * **NFR-06:** User interface and error messages SHALL be localized in Ukrainian.
@@ -52,7 +52,7 @@ As a Student, I want to book a place for a Lesson and pay for it with my card to
 Given student "Sigma" is registered in system
 And there is active Lesson "Hip Hop" on "10-23-2026 18:00" in "Hall 2" with free space
 When Student chooses this Lesson and clicks "Book and pay"
-Then system registers an entry in Booking table with "pending" status
+Then system registers an entry in Booking table with "pending_payment" status
 And system reserves spot for 15 minutes
 And redirects Student to MonoBank payment page
 When MonoBank API sends a response, that transaction is successful
@@ -69,7 +69,7 @@ And no new booking record is created.
 
 *Scenario: Booking is cancelled in case of an error during payment*
 Given student "Sigma" is registered in system
-And he has a booking for "Jazz Funk" on "12-23-2026 12:00" in "Hall 3" with status "pending"
+And he has a booking for "Jazz Funk" on "12-23-2026 12:00" in "Hall 3" with status "pending_payment"
 And booking record was created at "14:00:00"
 When the time reaches "14:15:01" without receiving a successful payment webhook
 Then system updates booking status to "cancelled"
@@ -87,7 +87,7 @@ And notifies Student that Booking is successfully canceled.
 
 | EARS Req ID | Description| Use Case ID | Gherkin Scenario ID | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **REQ-01** | Booking status enum constraint (pending, confirmed, cancelled)| UC_Book, UC_Cancel | Scenario 1, Scenario 3, Scenario 4 | **Covered** |
+| **REQ-01** | Booking status enum constraint (pending_payment, confirmed, cancelled)| UC_Book, UC_Cancel | Scenario 1, Scenario 3, Scenario 4 | **Covered** |
 | **REQ-02** | Checking capacity before booking | UC_Book | Scenario 1, Scenario 2 | **Covered** |
 | **REQ-03** | Initialisation of payment session  Monobank API | UC_Book | Sсenario 1 | **Covered** |
 | **REQ-04** | Blocking place when processing the payment | UC_Book | Scenario 1 | **Covered** |
@@ -113,4 +113,4 @@ And notifies Student that Booking is successfully canceled.
 *Promo code removal:* Issue: initial AI generation from Prompt 3 introduced promotional discount codes into the domain model. Resolution: Manually corrected spec requirements and model scope to strictly focus on flat-rate bookings.
 *Missing Administrator role:* Issue: spec.md required Administrator actor, but Lab1 ER schema lacked it. Resolution: Synchronized role management attributes in model and specification.
 *Unconstrained booking status field:* Issue: "status" field in Lab1 was an unconstrained string.
-Resolution: Restructured status attribute to an ENUM type (pending, confirmed, cancelled).
+Resolution: Restructured status attribute to an ENUM type (pending_payment, confirmed, cancelled).

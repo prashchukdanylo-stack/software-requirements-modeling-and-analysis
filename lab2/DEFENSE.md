@@ -13,7 +13,7 @@ The primary goal of this work is to establish an unambiguous, fully testable req
    * *Resolution:* Updated ER schema and specification to support role-based authorization.  
    * *Fix Commit SHA:* `df0e5fc`.
 3. **Booking Status ENUM Constraint:**  
-   * *Problem:* `spec.md` enforces a strict state machine (`pending` --`confirmed` / `cancelled`), but Lab 1 defined `status : string` without DB constraints.  
+   * *Problem:* `spec.md` enforces a strict state machine (`pending_payment` --`confirmed` / `cancelled`), but Lab 1 defined `status : string` without DB constraints.  
    * *Resolution:* Constrained `status` to a strict enumerated type across `spec.md`, EARS `REQ-01`, and Gherkin scenarios.  
    * *Fix Commit SHA:* `df0e5fc`.
 

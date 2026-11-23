@@ -1,7 +1,7 @@
 # Architecture model
 
 **System:** Dance Studio CRM.
-**Notation:** UML Component diagram (PlantUML - architecture.puml), render -- architecture.html.
+**Notation:** UML Component diagram (PlantUML - BackendAndInterfaces.puml, contextAndSystemBoundaries.puml), render -- architecture.html.
 **Context and model chain:** 
 - Lab1(ER): data model, used: Student, Instructor, DanceStyle, Hall, Lesson, Booking, Administrator, Payment; relations and keys.
 - Lab2: Requirements: actors from 1.1, out-of-scope from 1.2, EARS Req-1..6, NFR-01..07, Gherkin G1-G4, traceability matrix; functions, restrictions, borders.
@@ -17,7 +17,7 @@ Four main connections cross the system boundary: IMonobank (Payment → Monobank
 - C-01 Web UI (SPA) [Presentation]: An interface for users, students, instructors, and administrators; provides Ukrainian localization and redirects to the payment page.
 - C-02 API Gateway [Backend]: A single entry point for client requests; performs token validation, manages request queuing (up to 50 RPS, with a buffer of up to 200 requests before returning a "too many requests" error), and supports TLS 1.3.
 - C-03 Identity Service [Backend]: Handles registration, login, and profile management, as well as the issuance and verification of tokens.
-- C-04 Schedule Service [Backend]: Provides a schedule with filters by style and instructor; manages studios, styles, instructors, and classes.
+- C-04 Schedule Service [Backend]: Provides a schedule with filters by style and instructor; manages halls, dance styles, instructors, and lessons.
 - C-05 Booking Service [Backend]: Manages the booking lifecycle: checks for available slots (`hasFreeSlots`), creates requests with a 'pending_payment' status, and handles cancellations and slot blocking.
 - C-06 Payment Service [Backend]: Handles 'createInvoice'/'getStatus'/'cancelInvoice' calls, processes and verifies webhooks (ECDSA SHA-256), and ensures idempotency.
 - C-07 BookingTimeoutWorker [Backend]: A background service for checking and canceling expired bookings with the status 'pending_payment' (15-minute limit).

@@ -15,6 +15,7 @@ package "Dance Studio CRM (system boundary)" {
   }
 
   component "Backend\n(API Gateway, Identity, Schedule,\nBooking, Payment, Worker, Notification)" as Backend
+  Backend -up- IRestAPI
 
   package "Data" {
     component "Data Access Layer" as DAL
@@ -35,8 +36,7 @@ package "External System (out of boundary)" {
 }
 
 Actors --> WebUI
-IRestAPI --> Backend
-Backend ..> DAL : via IRepository
+Backend ..> IRepository
 Backend ..> IMonobank : createInvoice / cancelInvoice
 WebUI ..> IPaymentPage : redirect (pageUrl)
 Mono ..> Backend : signed webhook (IWebhook, bypasses Gateway)

@@ -1,0 +1,43 @@
+@startuml
+skinparam componentStyle uml2
+skinparam nodesep 35
+skinparam ranksep 50
+
+title Dance Studio CRM -- System Context & Boundary
+
+actor "Student / Instructor / Administrator" as Actors
+
+package "Dance Studio CRM (system boundary)" {
+  package "Presentation" {
+    component "Web UI" as WebUI
+    () "IRestAPI" as IRestAPI
+    WebUI ..> IRestAPI : requires
+  }
+
+  component "Backend\n(API Gateway, Identity, Schedule,\nBooking, Payment, Worker, Notification)" as Backend
+
+  package "Data" {
+    component "Data Access Layer" as DAL
+    () "IRepository" as IRepository
+    DAL -up- IRepository
+
+    database "PostgreSQL" as DB
+    DAL --> DB : SQL
+  }
+}
+
+package "External System (out of boundary)" {
+  component "Monobank API" as Mono
+  () "IMonobank" as IMonobank
+  () "IPaymentPage" as IPaymentPage
+  Mono -up- IMonobank
+  Mono -right- IPaymentPage
+}
+
+Actors --> WebUI
+IRestAPI --> Backend
+Backend ..> DAL : via IRepository
+Backend ..> IMonobank : createInvoice / cancelInvoice
+WebUI ..> IPaymentPage : redirect (pageUrl)
+Mono ..> Backend : signed webhook (IWebhook, bypasses Gateway)
+@enduml

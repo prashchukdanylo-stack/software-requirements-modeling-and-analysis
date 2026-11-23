@@ -28,10 +28,9 @@ The Resolution: Bypassed the API Gateway for external webhooks by routing Monoba
 The Resolution: Decoupled the microservices by introducing the IBookingState interface. The Booking Service provides this state contract, allowing the Payment Service to safely trigger status transitions without tightly coupling to internal database schemas or business logic. <992f402>
 3. Notification Ambiguity: Resolved vague delivery requirements from earlier specs by formalizing the internal Notification Adapter (C-08) to encapsulate student contact handling.
 The Resolution: Centralized notification handling within the Notification Adapter, which uses student contact information (email and phone) to send messages. The external delivery mechanism remains unspecified, as no external notification provider was defined in previous laboratory works (because of it, there is nothing to fix).
-## 6. ADR:
-    Alternative considered: Routing Monobank webhook callbacks through the central API Gateway.
-    Why rejected: Passing signed financial webhooks through general client routing adds unnecessary authentication coupling and complicates failure recovery.
-    Chosen approach: Establishing a direct, cryptographically secured entry point (IWebhook) on the Payment Service validating ECDSA SHA-256 signatures independently (NFR-05).
+### 6. ADR — removing Booking--Payment cycle:
+- **Alternatives:** (A) Event-driven 'PaymentConfirmed'/'PaymentFailed' events consumed by 'Booking' — pros: loose coupling; cons: extra event contracts and async state complexity. (B) One-way coordination via 'Booking' calling 'IPayment' — pros: removes cyclic dependency and keeps call flow direct; cons: 'Booking' coordinates status checks/timeouts directly.
+- **Decision:** Selected **Option B** to eliminate the cycle with minimal structural overhead.
 
 ## 7. Verification & Traceability:
 Validated end-to-end trace chains: mapped ER entities (Lab 1) and EARS requirements (Lab 2) directly to sequence steps (Lab 3) and process activities (Lab 4), ensuring zero dangling interfaces and full structural consistency.

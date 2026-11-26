@@ -1,0 +1,60 @@
+@startuml
+skinparam componentStyle uml2
+skinparam nodesep 40
+skinparam ranksep 55
+
+title Dance Studio CRM -- Backend Components & Interfaces
+
+package "Backend (Node.js 20+)" {
+  component "API Gateway" as Api
+  () "IRestAPI" as IRestAPI
+  Api -up- IRestAPI
+
+  component "Identity Service" as Idn
+  () "IAuth" as IAuth
+  Idn -right- IAuth
+
+  component "Schedule Service" as Sch
+  () "ISchedule" as ISchedule
+  Sch -right- ISchedule
+
+  component "Booking Service" as Book
+  () "IBooking" as IBooking
+  Book -right- IBooking
+
+  component "Payment Service" as Pay
+  () "IPayment" as IPayment
+  () "IWebhook" as IWebhook
+  Pay -right- IPayment
+  Pay -down- IWebhook
+
+  component "BookingTimeoutWorker" as Wrk
+
+  component "Notification Adapter" as Notif
+  () "INotify" as INotify
+  Notif -right- INotify
+}
+
+() "IRepository\n(provided by DAL)" as IRepository
+() "IMonobank\n(provided by Monobank)" as IMonobank
+
+Api ..> IAuth : validateToken
+Api ..> ISchedule : requires
+Api ..> IBooking : requires
+Api ..> IPayment : requires (admin)
+
+Book ..> IPayment : createInvoice / getStatus / cancelInvoice
+Wrk ..> IBooking : cancelExpiredBookings
+
+Book ..> INotify : sendMessage
+Pay ..> INotify : sendMessage
+
+Pay ..> IMonobank : createInvoice / cancelInvoice
+
+Idn ..> IRepository
+Sch ..> IRepository
+Book ..> IRepository
+Pay ..> IRepository
+Wrk ..> IRepository
+Notif ..> IRepository
+@enduml
